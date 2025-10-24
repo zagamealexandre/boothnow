@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-[color:var(--bg)] text-[color:var(--text)];
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-[color:var(--accent)] hover:opacity-90 text-white font-medium py-2 px-4 rounded-[10px] transition-all duration-300 shadow-sm;
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-[color:var(--text)] border border-[color:var(--border)] hover:bg-[color:var(--card)] font-medium py-2 px-4 rounded-[10px] transition-colors duration-200;
+  }
+  
+  .card {
+    @apply bg-[color:var(--card)] rounded-[16px] shadow-calm border border-[color:var(--border)] p-6 transition-all duration-300;
+  }
+  
+  .input {
+    @apply w-full px-3 py-2 border border-[color:var(--border)] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)] focus:border-transparent bg-white;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent;
+  }
+  
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+  }
+
+  .fade-in {
+    animation: fadeIn 300ms ease-out both;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .hover-lift {
+    transition: transform 200ms ease, box-shadow 200ms ease;
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  }
+}
+
+:root{
+  --bg:#F5F6F7;
+  --card:#FFFFFF;
+  --text:#1E1E1E;
+  --accent:#3A7BD5;
+  --border:#E4E6E8;
+  --success:#5BC08A;
+}

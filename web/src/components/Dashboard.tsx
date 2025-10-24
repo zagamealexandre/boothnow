@@ -450,6 +450,34 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
               </button>
             </div>
 
+            {/* Custom Zoom Controls - positioned to avoid bottom navbar */}
+            <div className="absolute right-4 bottom-20 flex flex-col space-y-2 z-10">
+              <button 
+                onClick={() => {
+                  if ((window as any).mapInstanceRef?.current) {
+                    const currentZoom = (window as any).mapInstanceRef.current.getZoom()
+                    ;(window as any).mapInstanceRef.current.setZoom(currentZoom + 1)
+                  }
+                }}
+                className="p-3 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors"
+                title="Zoom in"
+              >
+                <span className="w-6 h-6 text-gray-700 text-lg font-bold">+</span>
+              </button>
+              <button 
+                onClick={() => {
+                  if ((window as any).mapInstanceRef?.current) {
+                    const currentZoom = (window as any).mapInstanceRef.current.getZoom()
+                    ;(window as any).mapInstanceRef.current.setZoom(currentZoom - 1)
+                  }
+                }}
+                className="p-3 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors"
+                title="Zoom out"
+              >
+                <span className="w-6 h-6 text-gray-700 text-lg font-bold">−</span>
+              </button>
+            </div>
+
             {/* Find Nearby Booths Button */}
             <button 
               onClick={handleRecenter}
@@ -737,53 +765,53 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
                 <span className="ml-3 text-gray-600">Loading profile...</span>
               </div>
             ) : (
-              <div className="space-y-6">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">Account Info</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Name:</span>
+            <div className="space-y-6">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-3">Account Info</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Name:</span>
                       <span className="text-gray-900">
                         {userProfile ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || 'Not provided' : 'Loading...'}
                       </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Email:</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Email:</span>
                       <span className="text-gray-900">{userProfile?.email || 'Not provided'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Member since:</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Member since:</span>
                       <span className="text-gray-900">{userStats?.member_since || 'Unknown'}</span>
-                    </div>
                   </div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">Usage Stats</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Total sessions:</span>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-3">Usage Stats</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total sessions:</span>
                       <span className="text-gray-900">{userStats?.total_sessions || 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Total time:</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total time:</span>
                       <span className="text-gray-900">
                         {userStats ? `${Math.floor(userStats.total_time_minutes / 60)}h ${userStats.total_time_minutes % 60}m` : '0h 0m'}
                       </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Total spent:</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total spent:</span>
                       <span className="text-gray-900">€{userStats?.total_spent?.toFixed(2) || '0.00'}</span>
-                    </div>
                   </div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">Recent Sessions</h3>
-                  <div className="space-y-4">
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-3">Recent Sessions</h3>
+                <div className="space-y-4">
                     {sessionHistory.length > 0 ? (
                       sessionHistory.map((session) => (
                         <div key={session.id} className="bg-white rounded-lg p-4 border border-gray-200">
-                          <div className="flex justify-between items-start">
-                            <div>
+                    <div className="flex justify-between items-start">
+                      <div>
                               <h4 className="font-semibold text-gray-900">{session.booth_name}</h4>
                               <p className="text-sm text-gray-600">{session.booth_address}</p>
                               <p className="text-xs text-gray-500 mt-1">
@@ -799,26 +827,26 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
                                   minute: '2-digit' 
                                 })}`}
                               </p>
-                            </div>
+                      </div>
                             <span className="text-sm font-medium text-green-600">
                               {session.duration_minutes ? `${session.duration_minutes} min` : 'Active'}
-                            </span>
-                          </div>
-                          <div className="mt-3 flex items-center space-x-4 text-sm text-gray-600">
-                            <span className="flex items-center">
-                              <Shield className="w-4 h-4 mr-1" />
-                              Soundproof
-                            </span>
-                            <span className="flex items-center">
-                              <Wifi className="w-4 h-4 mr-1" />
-                              WiFi
-                            </span>
-                            <span className="flex items-center">
-                              <Clock className="w-4 h-4 mr-1" />
+                      </span>
+                    </div>
+                    <div className="mt-3 flex items-center space-x-4 text-sm text-gray-600">
+                      <span className="flex items-center">
+                        <Shield className="w-4 h-4 mr-1" />
+                        Soundproof
+                      </span>
+                      <span className="flex items-center">
+                        <Wifi className="w-4 h-4 mr-1" />
+                        WiFi
+                      </span>
+                      <span className="flex items-center">
+                        <Clock className="w-4 h-4 mr-1" />
                               €{session.cost?.toFixed(2) || '0.00'}
-                            </span>
-                          </div>
-                        </div>
+                      </span>
+                    </div>
+                  </div>
                       ))
                     ) : (
                       <div className="text-center py-8 text-gray-500">
@@ -826,18 +854,18 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
                         <p className="text-sm mt-1">Your session history will appear here</p>
                       </div>
                     )}
-                  </div>
                 </div>
-                <div className="space-y-3">
-                  <button className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg">
-                    Payment Methods
-                  </button>
-                  <button className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg">
-                    Notifications
-                  </button>
-                  <button className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg">
-                    Help & Support
-                  </button>
+              </div>
+              <div className="space-y-3">
+                <button className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg">
+                  Payment Methods
+                </button>
+                <button className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg">
+                  Notifications
+                </button>
+                <button className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg">
+                  Help & Support
+                </button>
                   <SignOutButton>
                     <button 
                       className="w-full bg-red-50 text-red-600 text-sm font-medium px-4 py-3 rounded-lg border border-red-200 hover:bg-red-100 transition-colors"
@@ -850,8 +878,8 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
                       Log Out
                     </button>
                   </SignOutButton>
-                </div>
               </div>
+            </div>
             )}
           </div>
         )}

@@ -277,7 +277,12 @@ export default function MobileMapSection() {
       
       mapInstanceRef.current = map
       ;(window as any).mapInstanceRef = mapInstanceRef
-      map.setOptions({ zoomControl: true, fullscreenControl: false, mapTypeControl: false, streetViewControl: false })
+      map.setOptions({ 
+        zoomControl: false, // Disable default zoom controls
+        fullscreenControl: false, 
+        mapTypeControl: false, 
+        streetViewControl: false 
+      })
       
       // Center map on Stockholm and set appropriate zoom
       map.setCenter({ lat: 59.334591, lng: 18.06324 })

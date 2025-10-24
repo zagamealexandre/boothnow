@@ -2,41 +2,591 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { SignOutButton, useAuth } from '@clerk/nextjs'
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Autocomplete } from '@react-google-maps/api'
-import { MapPin, Clock, Wifi, Shield, LocateFixed, Search, X, Settings, Bell, Users, QrCode, User, Ticket, LifeBuoy } from 'lucide-react'
+import { MapPin, Clock, Wifi, Shield, LocateFixed, Search, X, Settings, Bell, Users, QrCode, User, Ticket, LifeBuoy, Gift, Star, ShoppingBag, Coffee } from 'lucide-react'
 import Link from 'next/link'
+import Rewards from './Rewards'
+import { boothService, Booth } from '../services/boothService'
+import { MapSection } from './minimal/MapSection'
+import MobileMapSection from './MobileMapSection'
 
-const defaultMapContainerStyle = {
-  width: '100%',
-  height: '100%',
-}
+// Enhanced full-screen map component for dashboard mobile view (DEPRECATED - using MapSection instead)
+function FullScreenMap_DEPRECATED() {
+  const mapRef = useRef<HTMLDivElement>(null)
+  const mapInstanceRef = useRef<google.maps.Map | null>(null)
+  const [booths, setBooths] = useState<Booth[]>([])
+  const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-const center = {
-  lat: 59.3293, // Stockholm
-  lng: 18.0686,
-}
+  // Load booths and set up real-time updates
+  useEffect(() => {
+    const loadBooths = async () => {
+      try {
+        console.log('🔄 FullScreenMap: Loading booths...')
+        setIsLoading(true)
+        const fetchedBooths = await boothService.fetchBooths()
+        console.log('✅ FullScreenMap: Fetched booths:', fetchedBooths.length, 'booths')
+        console.log('📍 FullScreenMap: Booth details:', fetchedBooths)
+        setBooths(fetchedBooths)
+      } catch (error) {
+        console.error('❌ FullScreenMap: Error loading booths:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-const libraries: ('places')[] = ['places']
+    loadBooths()
 
-interface Booth {
-  place_id: string
-  name: string
-  formatted_address: string
-  geometry: {
-    location: {
-      lat: number
-      lng: number
+    // Subscribe to real-time updates
+    const unsubscribe = boothService.subscribeToBoothUpdates((updatedBooths) => {
+      console.log('Booth updates received:', updatedBooths)
+      setBooths(updatedBooths)
+    })
+
+    return () => {
+      console.log('🧹 FullScreenMap: Cleaning up booth subscriptions')
+      unsubscribe()
+    }
+  }, [])
+
+  // Helper functions for booth rendering
+  const getBoothIcon = (status: string) => {
+    const colors = {
+      available: '#2ECC71', // Green
+      busy: '#F1C40F',      // Yellow
+      prebooked: '#E74C3C', // Red
+      maintenance: '#95A5A6' // Gray
+    }
+
+    const color = colors[status as keyof typeof colors] || '#2E6A9C'
+
+    // Use simple circle markers for better visibility
+    return {
+      url: 'data:image/svg+xml;utf8,' +
+        encodeURIComponent(
+          `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="16" cy="16" r="12" fill="${color}" stroke="white" stroke-width="4"/>
+          </svg>`
+        ),
+      scaledSize: new google.maps.Size(32, 32),
+      anchor: new google.maps.Point(16, 16),
     }
   }
-  opening_hours?: {
-    open_now: boolean
-    weekday_text: string[]
+
+  const renderBoothCard = (booth: Booth) => {
+    const distance = userLocation ? dist(userLocation, { lat: booth.lat, lng: booth.lng }) : null
+    const distText = distance ? `${Math.round(distance)} m away` : ''
+    
+    const getStatusInfo = (status: string, timeRemaining?: number, nextAvailableAt?: string) => {
+      switch (status) {
+        case 'available':
+          return { 
+            text: '🟢 Available now', 
+            color: '#2ECC71', 
+            bgColor: '#E6F4EA',
+            buttonText: 'Book this booth',
+            buttonAction: 'book'
+          }
+        case 'busy':
+          return { 
+            text: `🕓 Busy, free in ${timeRemaining || 0} min`, 
+            color: '#F1C40F', 
+            bgColor: '#FEF3C7',
+            buttonText: 'Pre-book slot',
+            buttonAction: 'prebook'
+          }
+        case 'prebooked':
+          return { 
+            text: '🔒 Pre-booked for later', 
+            color: '#E74C3C', 
+            bgColor: '#FCE8E6',
+            buttonText: 'Join waitlist',
+            buttonAction: 'waitlist'
+          }
+        case 'maintenance':
+          return { 
+            text: '🔧 Under maintenance', 
+            color: '#95A5A6', 
+            bgColor: '#F3F4F6',
+            buttonText: 'Notify when ready',
+            buttonAction: 'notify'
+          }
+        default:
+          return { 
+            text: '❓ Status unknown', 
+            color: '#2E6A9C', 
+            bgColor: '#E6F4EA',
+            buttonText: 'Check availability',
+            buttonAction: 'check'
+          }
+      }
+    }
+
+    const statusInfo = getStatusInfo(booth.status, booth.timeRemaining, booth.next_available_at)
+    
+    return `
+      <div style="font-family:Inter,ui-sans-serif,-apple-system;min-width:280px;max-width:320px;background:#fff;border:1px solid #E0E0E0;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.12);padding:16px;position:relative">
+        <div style="position:absolute;top:12px;right:12px;padding:4px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${statusInfo.bgColor};color:${statusInfo.color}">
+          ${statusInfo.text}
+        </div>
+        
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;margin-top:8px">
+          <span style="font-size:18px">🏪</span>
+          <div>
+            <div style="font-weight:600;color:#1A1A1A;font-size:16px">${booth.name}</div>
+            <div style="color:#666;font-size:12px">${booth.partner}</div>
+          </div>
+        </div>
+        
+        <div style="color:#666;font-size:13px;margin-bottom:12px;line-height:1.4">${booth.address}</div>
+        
+        <div style="display:flex;align-items:center;gap:8px;justify-content:space-between;margin-bottom:16px">
+          <div style="color:#666;font-size:12px">${distText}</div>
+          <div style="color:#666;font-size:12px">Booth #${booth.id}</div>
+        </div>
+        
+        <div style="display:flex;gap:8px">
+          <button onclick="handleBoothAction('${booth.id}', '${statusInfo.buttonAction}')" 
+            style="flex:1;background:${statusInfo.buttonAction === 'book' ? '#2E6A9C' : '#fff'};color:${statusInfo.buttonAction === 'book' ? '#fff' : '#2E6A9C'};border:1px solid #2E6A9C;padding:10px 12px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s">
+            ${statusInfo.buttonText}
+          </button>
+          <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booth.address)}" 
+            target="_blank" 
+            style="flex:1;text-align:center;background:#fff;border:1px solid #E0E0E0;color:#1A1A1A;padding:10px 12px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2s">
+            Open in map
+          </a>
+        </div>
+      </div>`
   }
-  url?: string
-  boothnow_enabled: boolean
-  availability: boolean
-  distance?: number
+
+  const dist = (a: google.maps.LatLngLiteral, b: google.maps.LatLngLiteral) => {
+    const R = 6371000
+    const dLat = ((b.lat - a.lat) * Math.PI) / 180
+    const dLng = ((b.lng - a.lng) * Math.PI) / 180
+    const la1 = (a.lat * Math.PI) / 180
+    const la2 = (b.lat * Math.PI) / 180
+    const x = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2
+    return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x))
+  }
+
+  // Effect to add markers when booths change
+  useEffect(() => {
+    console.log('🗺️ FullScreenMap: useEffect triggered - mapInstanceRef.current:', !!mapInstanceRef.current, 'booths.length:', booths.length)
+    
+    // Prevent running if map isn't ready or no booths
+    if (!mapInstanceRef.current || booths.length === 0) {
+      console.log('⏸️ FullScreenMap: Skipping marker rendering - map not ready or no booths')
+      return
+    }
+    
+    // Prevent duplicate marker rendering
+    if ((window as any).boothMarkers && (window as any).boothMarkers.length > 0) {
+      console.log('⏸️ FullScreenMap: Markers already exist, skipping duplicate rendering')
+      return
+    }
+    
+    if (mapInstanceRef.current && booths.length > 0) {
+      console.log('📍 FullScreenMap: Adding markers for booths:', booths)
+      
+      // Clear existing markers
+      if ((window as any).boothMarkers) {
+        (window as any).boothMarkers.forEach((marker: google.maps.Marker) => marker.setMap(null))
+      }
+      
+      // Add new markers
+      const markers: google.maps.Marker[] = []
+      
+      booths.forEach((booth) => {
+        console.log('📍 FullScreenMap: Adding marker for booth:', booth.name, 'at', booth.lat, booth.lng, 'status:', booth.status)
+        
+        const marker = new google.maps.Marker({
+          position: { lat: booth.lat, lng: booth.lng },
+          map: mapInstanceRef.current,
+          title: booth.name,
+          icon: getBoothIcon(booth.status),
+          animation: google.maps.Animation.DROP,
+        })
+        
+        console.log('🎯 FullScreenMap: Marker created for', booth.name, 'at position', marker.getPosition()?.toString())
+
+        marker.addListener('click', () => {
+          const info = new google.maps.InfoWindow({
+            content: renderBoothCard(booth),
+            ariaLabel: 'Booth details',
+          })
+          info.open({ map: mapInstanceRef.current, anchor: marker })
+        })
+
+        markers.push(marker)
+      })
+      
+      console.log('✅ FullScreenMap: Added', markers.length, 'markers to map')
+      console.log('🎯 FullScreenMap: Marker positions:', markers.map(m => m.getPosition()?.toString()))
+      
+      // Add a test marker to verify markers are visible
+      const testMarker = new google.maps.Marker({
+        position: { lat: 59.334591, lng: 18.06324 }, // Stockholm center
+        map: mapInstanceRef.current,
+        title: 'Test Marker',
+        label: 'TEST'
+      })
+      console.log('🧪 FullScreenMap: Test marker added at Stockholm center')
+      
+      ;(window as any).boothMarkers = markers
+    } else {
+      console.log('Not adding markers - mapInstanceRef.current:', !!mapInstanceRef.current, 'booths.length:', booths.length)
+    }
+  }, [booths, userLocation])
+
+  useEffect(() => {
+    const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    if (!key || !mapRef.current) return
+
+    // Prevent multiple map initializations
+    if (mapInstanceRef.current) {
+      console.log('🗺️ FullScreenMap: Map already initialized, skipping')
+      return
+    }
+
+    const id = 'google-maps-js'
+    const existing = document.getElementById(id) as HTMLScriptElement | null
+
+    const init = () => {
+      // @ts-ignore
+      const google = (window as any).google
+      if (!google || !mapRef.current || mapInstanceRef.current) return
+
+      // Minimal light style per Scandinavian palette
+      const styledJson: any = [
+        { elementType: 'geometry', stylers: [{ color: '#F5F4F2' }] },
+        { elementType: 'labels.text.fill', stylers: [{ color: '#A3A3A3' }] },
+        { elementType: 'labels.text.stroke', stylers: [{ color: '#F5F4F2' }] },
+        { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+        { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+        { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#EAEAEA' }] },
+        { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9b9b9b' }] },
+        { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#D9E6F2' }] },
+      ]
+
+      const stockholm = { lat: 59.334591, lng: 18.06324 }
+      const map = new google.maps.Map(mapRef.current, {
+        center: stockholm,
+        zoom: 13,
+        disableDefaultUI: true,
+        styles: styledJson,
+      })
+      
+              mapInstanceRef.current = map
+              console.log('🗺️ FullScreenMap: Map initialized:', map)
+              ;(window as any).mapInstanceRef = mapInstanceRef
+      map.setOptions({ zoomControl: true, fullscreenControl: false, mapTypeControl: false, streetViewControl: false })
+      
+      
+      // Center map on Stockholm and set appropriate zoom
+      map.setCenter({ lat: 59.334591, lng: 18.06324 })
+      map.setZoom(13)
+
+      // Compute distance in meters
+      const dist = (a: google.maps.LatLngLiteral, b: google.maps.LatLngLiteral) => {
+        const R = 6371000
+        const dLat = ((b.lat - a.lat) * Math.PI) / 180
+        const dLng = ((b.lng - a.lng) * Math.PI) / 180
+        const la1 = (a.lat * Math.PI) / 180
+        const la2 = (b.lat * Math.PI) / 180
+        const x = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2
+        return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x))
+      }
+
+      // Geolocate helper
+      const locate = () => {
+        if (!navigator.geolocation) return
+        navigator.geolocation.getCurrentPosition(
+          (res) => {
+            const pos = { lat: res.coords.latitude, lng: res.coords.longitude }
+            setUserLocation(pos)
+            map.panTo(pos)
+            map.setZoom(14)
+            new google.maps.Marker({
+              position: pos,
+              map,
+              icon: {
+                url: 'data:image/svg+xml;utf8,' +
+                  encodeURIComponent(
+                    `<svg width="22" height="22" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="11" cy="11" r="8" fill="#2E6A9C" stroke="white" stroke-width="3"/>
+                    </svg>`
+                  ),
+                scaledSize: new google.maps.Size(22, 22),
+              },
+              title: 'Your location',
+            })
+          },
+          () => {}
+        )
+      }
+
+      ;(window as any).recenterMap = locate
+
+      // Status-based booth icons with colors
+      const getBoothIcon = (status: string) => {
+        const colors = {
+          available: '#2ECC71', // Green
+          busy: '#F1C40F',      // Yellow
+          prebooked: '#E74C3C', // Red
+          maintenance: '#95A5A6' // Gray
+        }
+        
+        const icons = {
+          available: 'circle',
+          busy: 'clock',
+          prebooked: 'lock',
+          maintenance: 'wrench'
+        }
+
+        const color = colors[status as keyof typeof colors] || '#2E6A9C'
+        const icon = icons[status as keyof typeof icons] || 'help-circle'
+
+        return {
+          url: 'data:image/svg+xml;utf8,' +
+            encodeURIComponent(
+              `<svg width="32" height="40" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.3)"/>
+                  </filter>
+                </defs>
+                <rect x="8" y="6" width="16" height="26" rx="4" fill="${color}" stroke="white" stroke-width="3" filter="url(#shadow)"/>
+                <circle cx="16" cy="36" r="4" fill="${color}" stroke="white" stroke-width="3"/>
+                <text x="16" y="20" text-anchor="middle" fill="white" font-size="12" font-family="Arial">${icon === 'circle' ? '●' : icon === 'clock' ? '🕐' : icon === 'lock' ? '🔒' : '🔧'}</text>
+              </svg>`
+            ),
+          scaledSize: new google.maps.Size(32, 40),
+          anchor: new google.maps.Point(16, 40),
+        }
+      }
+
+      // Enhanced info card renderer with status and timing
+      const renderBoothCard = (booth: Booth) => {
+        const distance = userLocation ? dist(userLocation, { lat: booth.lat, lng: booth.lng }) : null
+        const distText = distance ? `${Math.round(distance)} m away` : ''
+        
+        const getStatusInfo = (status: string, timeRemaining?: number, nextAvailableAt?: string) => {
+          switch (status) {
+            case 'available':
+              return { 
+                text: '🟢 Available now', 
+                color: '#2ECC71', 
+                bgColor: '#E6F4EA',
+                buttonText: 'Book this booth',
+                buttonAction: 'book'
+              }
+            case 'busy':
+              return { 
+                text: `🕓 Busy, free in ${timeRemaining || 0} min`, 
+                color: '#F1C40F', 
+                bgColor: '#FEF3C7',
+                buttonText: 'Pre-book slot',
+                buttonAction: 'prebook'
+              }
+            case 'prebooked':
+              return { 
+                text: '🔒 Pre-booked for later', 
+                color: '#E74C3C', 
+                bgColor: '#FCE8E6',
+                buttonText: 'Join waitlist',
+                buttonAction: 'waitlist'
+              }
+            case 'maintenance':
+              return { 
+                text: '🔧 Under maintenance', 
+                color: '#95A5A6', 
+                bgColor: '#F3F4F6',
+                buttonText: 'Notify when ready',
+                buttonAction: 'notify'
+              }
+            default:
+              return { 
+                text: '❓ Status unknown', 
+                color: '#2E6A9C', 
+                bgColor: '#E6F4EA',
+                buttonText: 'Check availability',
+                buttonAction: 'check'
+              }
+          }
+        }
+
+        const statusInfo = getStatusInfo(booth.status, booth.timeRemaining, booth.next_available_at)
+        
+        return `
+          <div style="font-family:Inter,ui-sans-serif,-apple-system;min-width:280px;max-width:320px;background:#fff;border:1px solid #E0E0E0;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.12);padding:16px;position:relative">
+            <div style="position:absolute;top:12px;right:12px;padding:4px 8px;border-radius:12px;font-size:11px;font-weight:600;background:${statusInfo.bgColor};color:${statusInfo.color}">
+              ${statusInfo.text}
+            </div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;margin-top:8px">
+              <span style="font-size:18px">🏪</span>
+              <div>
+                <div style="font-weight:600;color:#1A1A1A;font-size:16px">${booth.name}</div>
+                <div style="color:#666;font-size:12px">${booth.partner}</div>
+              </div>
+            </div>
+            
+            <div style="color:#666;font-size:13px;margin-bottom:12px;line-height:1.4">${booth.address}</div>
+            
+            <div style="display:flex;align-items:center;gap:8px;justify-content:space-between;margin-bottom:16px">
+              <div style="color:#666;font-size:12px">${distText}</div>
+              <div style="color:#666;font-size:12px">Booth #${booth.id}</div>
+            </div>
+            
+            <div style="display:flex;gap:8px">
+              <button onclick="handleBoothAction('${booth.id}', '${statusInfo.buttonAction}')" 
+                style="flex:1;background:${statusInfo.buttonAction === 'book' ? '#2E6A9C' : '#fff'};color:${statusInfo.buttonAction === 'book' ? '#fff' : '#2E6A9C'};border:1px solid #2E6A9C;padding:10px 12px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s">
+                ${statusInfo.buttonText}
+              </button>
+              <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booth.address)}" 
+                target="_blank" 
+                style="flex:1;text-align:center;background:#fff;border:1px solid #E0E0E0;color:#1A1A1A;padding:10px 12px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2s">
+                Open in map
+              </a>
+            </div>
+          </div>`
+      }
+
+      const info = new google.maps.InfoWindow({
+        content: '',
+        ariaLabel: 'Booth details',
+      })
+
+      // Global function for booth actions
+      ;(window as any).handleBoothAction = async (boothId: string, action: string) => {
+        console.log(`Booth ${boothId} action: ${action}`)
+        
+        try {
+          let result
+          switch (action) {
+            case 'book':
+              result = await boothService.bookBooth(boothId)
+              if (result.success) {
+                alert('Booth booked successfully!')
+              } else {
+                alert(`Booking failed: ${result.error}`)
+              }
+              break
+            case 'prebook':
+              const startTime = new Date(Date.now() + 60 * 60000).toISOString() // 1 hour from now
+              result = await boothService.prebookBooth(boothId, startTime)
+              if (result.success) {
+                alert('Booth pre-booked successfully!')
+              } else {
+                alert(`Pre-booking failed: ${result.error}`)
+              }
+              break
+            case 'waitlist':
+              result = await boothService.joinWaitlist(boothId)
+              if (result.success) {
+                alert('Added to waitlist!')
+              } else {
+                alert(`Waitlist failed: ${result.error}`)
+              }
+              break
+            default:
+              alert(`Action: ${action} for booth ${boothId}`)
+          }
+        } catch (error) {
+          console.error('Error handling booth action:', error)
+          alert('An error occurred. Please try again.')
+        }
+      }
+
+      // Add markers for booths
+      const addBoothMarkers = (boothsToShow: Booth[]) => {
+        // Clear existing markers
+        if ((window as any).boothMarkers) {
+          (window as any).boothMarkers.forEach((marker: google.maps.Marker) => marker.setMap(null))
+        }
+        
+        const markers: google.maps.Marker[] = []
+        
+        boothsToShow.forEach((booth) => {
+          const marker = new google.maps.Marker({
+            position: { lat: booth.lat, lng: booth.lng },
+            map,
+            title: booth.name,
+            icon: getBoothIcon(booth.status),
+            animation: google.maps.Animation.DROP,
+          })
+
+          marker.addListener('click', () => {
+            info.close()
+            info.setContent(renderBoothCard(booth))
+            info.open({ map, anchor: marker })
+          })
+
+          // Add hover effect with enhanced animation
+          marker.addListener('mouseover', () => {
+            marker.setAnimation(google.maps.Animation.BOUNCE)
+            setTimeout(() => marker.setAnimation(null), 1000)
+          })
+
+          // Add click animation
+          marker.addListener('click', () => {
+            marker.setAnimation(google.maps.Animation.BOUNCE)
+            setTimeout(() => marker.setAnimation(null), 600)
+          })
+
+          markers.push(marker)
+        })
+        
+        ;(window as any).boothMarkers = markers
+      }
+
+      // Add markers when booths are loaded
+      if (booths.length > 0) {
+        addBoothMarkers(booths)
+      }
+    }
+
+
+    if (existing) {
+      if ((window as any).google?.maps) init()
+      else existing.addEventListener('load', init, { once: true })
+      return
+    }
+
+    const script = document.createElement('script')
+    script.id = id
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&v=weekly`
+    script.async = true
+    script.defer = true
+    script.addEventListener('load', init, { once: true })
+            document.head.appendChild(script)
+          }, [booths, userLocation])
+
+          return () => {
+            console.log('🧹 FullScreenMap: Cleaning up map initialization')
+            // Clean up markers when component unmounts
+            if ((window as any).boothMarkers) {
+              (window as any).boothMarkers.forEach((marker: google.maps.Marker) => marker.setMap(null))
+              ;(window as any).boothMarkers = []
+            }
+          }
+
+  return (
+    <div className="h-full w-full relative">
+      {isLoading && (
+        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10">
+          <div className="flex items-center gap-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#2E6A9C] border-t-transparent"></div>
+            <span className="text-[#666] font-medium">Loading booth availability...</span>
+          </div>
+        </div>
+      )}
+      
+      
+      <div ref={mapRef} className="h-full w-full" />
+    </div>
+  )
 }
+
 
 const mapStyles = [
   {
@@ -79,27 +629,115 @@ const mapStyles = [
 ]
 
 export default function Dashboard() {
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
-    libraries,
-  })
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+  
+  if (!apiKey) {
+    console.error('Google Maps API key not found. Please set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in your environment variables.')
+  }
 
-  const [map, setMap] = useState<google.maps.Map | null>(null)
-  const [booths, setBooths] = useState<Booth[]>([])
-  const [selectedBooth, setSelectedBooth] = useState<Booth | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null)
-  const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null)
-  const [filterAvailable, setFilterAvailable] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('map')
   const [cameraActive, setCameraActive] = useState(false)
   const [scannedCode, setScannedCode] = useState<string | null>(null)
+  const [showSearchField, setShowSearchField] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const { userId } = useAuth()
+
+  // Handle recenter button
+  const handleRecenter = () => {
+    // Call the global recenter function from MapSection
+    if ((window as any).recenterMap) {
+      (window as any).recenterMap()
+    } else {
+      console.log('Map not ready yet, please wait...')
+    }
+  }
+
+  // Handle search functionality
+  const handleSearch = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([])
+      return
+    }
+
+    try {
+      // Use Google Places API for search
+      if ((window as any).google?.maps?.places) {
+        const service = new (window as any).google.maps.places.PlacesService(document.createElement('div'))
+        const request = {
+          query: query,
+          location: { lat: 59.334591, lng: 18.06324 }, // Stockholm center
+          radius: 15000,
+          fields: ['name', 'formatted_address', 'geometry', 'place_id', 'opening_hours', 'url']
+        }
+
+        service.textSearch(request, (results: any[], status: string) => {
+          if (status === (window as any).google.maps.places.PlacesServiceStatus.OK) {
+            setSearchResults(results || [])
+          } else {
+            console.error('Search failed:', status)
+            setSearchResults([])
+          }
+        })
+      }
+    } catch (error) {
+      console.error('Search error:', error)
+      setSearchResults([])
+    }
+  }
+
+  // Handle search input change with debounce
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setSearchQuery(value)
+    
+    // Clear previous timeout
+    if ((window as any).searchTimeout) {
+      clearTimeout((window as any).searchTimeout)
+    }
+    
+    // Set new timeout for debounced search
+    (window as any).searchTimeout = setTimeout(() => {
+      handleSearch(value)
+    }, 300)
+  }
+
+  // Handle search result selection
+  const handleSearchResultClick = (result: any) => {
+    if ((window as any).google?.maps) {
+      const map = (window as any).mapInstanceRef?.current
+      if (map && result.geometry?.location) {
+        map.panTo(result.geometry.location)
+        map.setZoom(16)
+        
+        // Add a marker for the selected result
+        new (window as any).google.maps.Marker({
+          position: result.geometry.location,
+          map: map,
+          title: result.name,
+          icon: {
+            url: 'data:image/svg+xml;utf8,' +
+              encodeURIComponent(
+                `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="12" r="8" fill="#2E6A9C" stroke="white" stroke-width="2"/>
+                </svg>`
+              ),
+            scaledSize: new (window as any).google.maps.Size(24, 24),
+          }
+        })
+      }
+    }
+    setShowSearchField(false)
+    setSearchQuery('')
+    setSearchResults([])
+  }
+
+
+ // Remove userLocation from dependencies to prevent re-runs
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -113,176 +751,25 @@ export default function Dashboard() {
     }
   }, [dropdownRef])
 
-  const onLoad = useCallback((map: google.maps.Map) => {
-    setMap(map)
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const userLoc = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          }
-          setUserLocation(userLoc)
-          map.panTo(userLoc)
-          map.setZoom(14)
-        },
-        () => {
-          console.log('Geolocation failed, using default center.')
-        }
-      )
-    }
-  }, [])
-
-  const onUnmount = useCallback(() => {
-    setMap(null)
-  }, [])
-
+  // Close search field when clicking outside
   useEffect(() => {
-    if (isLoaded) {
-      fetchNearbyBooths()
-    }
-  }, [isLoaded])
-
-  const fetchNearbyBooths = async (location = center) => {
-    setLoading(true)
-    
-    // Use mock data for now since Google Places API might not be working
-    const mockBooths: Booth[] = [
-      {
-        place_id: "1",
-        name: "7-Eleven Stockholm Central",
-        formatted_address: "Storgatan 1, Stockholm",
-        geometry: {
-          location: {
-            lat: 59.3293,
-            lng: 18.0686,
-          },
-        },
-        boothnow_enabled: true,
-        availability: true,
-      },
-      {
-        place_id: "2", 
-        name: "7-Eleven Gamla Stan",
-        formatted_address: "Västerlånggatan 1, Stockholm",
-        geometry: {
-          location: {
-            lat: 59.3251,
-            lng: 18.0719,
-          },
-        },
-        boothnow_enabled: true,
-        availability: false,
-      },
-      {
-        place_id: "3",
-        name: "7-Eleven Södermalm", 
-        formatted_address: "Götgatan 1, Stockholm",
-        geometry: {
-          location: {
-            lat: 59.3109,
-            lng: 18.0752,
-          },
-        },
-        boothnow_enabled: false,
-        availability: false,
-      },
-      {
-        place_id: "4",
-        name: "7-Eleven Östermalm",
-        formatted_address: "Sturegatan 1, Stockholm", 
-        geometry: {
-          location: {
-            lat: 59.3398,
-            lng: 18.0744,
-          },
-        },
-        boothnow_enabled: true,
-        availability: true,
-      },
-    ]
-
-    // Calculate distance if user location is available
-    if (userLocation && google.maps.geometry) {
-      mockBooths.forEach(booth => {
-        const userLatLng = new google.maps.LatLng(userLocation.lat, userLocation.lng);
-        const boothLatLng = new google.maps.LatLng(booth.geometry.location.lat, booth.geometry.location.lng);
-        booth.distance = google.maps.geometry.spherical.computeDistanceBetween(userLatLng, boothLatLng);
-      });
-    }
-
-    setBooths(mockBooths)
-    setLoading(false)
-  }
-
-  const handleMarkerClick = useCallback(async (booth: Booth) => {
-    if (!map) return
-
-    setSelectedBooth(booth)
-
-    // Fetch Place Details for richer info
-    const service = new google.maps.places.PlacesService(map)
-    service.getDetails(
-      {
-        placeId: booth.place_id,
-        fields: ['name', 'formatted_address', 'opening_hours', 'url', 'geometry'],
-      },
-      (place, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-          setSelectedBooth((prev) => ({
-            ...prev!,
-            name: place.name!,
-            formatted_address: place.formatted_address!,
-            geometry: {
-              location: {
-                lat: place.geometry?.location?.lat()!,
-                lng: place.geometry?.location?.lng()!,
-              },
-            },
-            opening_hours: place.opening_hours ? {
-              open_now: place.opening_hours.open_now || false,
-              weekday_text: place.opening_hours.weekday_text || []
-            } : undefined,
-            url: place.url || undefined,
-          }))
-        } else {
-          console.error('Place Details request failed:', status)
-        }
-      }
-    )
-  }, [map])
-
-  const handleRecenter = () => {
-    if (map && userLocation) {
-      map.panTo(userLocation)
-      map.setZoom(14)
-    } else if (map) {
-      map.panTo(center)
-      map.setZoom(13)
-    }
-  }
-
-  const onAutocompleteLoad = useCallback((autocompleteInstance: google.maps.places.Autocomplete) => {
-    setAutocomplete(autocompleteInstance)
-  }, [])
-
-  const onPlaceChanged = () => {
-    if (autocomplete !== null) {
-      const place = autocomplete.getPlace()
-      if (place.geometry?.location) {
-        map?.panTo(place.geometry.location)
-        map?.setZoom(14)
-        fetchNearbyBooths({
-          lat: place.geometry.location.lat(),
-          lng: place.geometry.location.lng(),
-        })
-      } else {
-        console.log('Place has no geometry')
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Element
+      if (showSearchField && !target.closest('.search-field-overlay')) {
+        setShowSearchField(false)
       }
     }
-  }
 
-  const filteredBooths = filterAvailable ? booths.filter(b => b.boothnow_enabled && b.availability) : booths
+    if (showSearchField) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }
+  }, [showSearchField])
+
+
+
 
   // Camera functions
   const startCamera = async () => {
@@ -394,16 +881,6 @@ export default function Dashboard() {
     }
   }, [])
 
-  if (!isLoaded) {
-  return (
-      <div className="flex items-center justify-center h-screen bg-gray-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2E6A9C] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading map...</p>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-[#F3F3F3]">
@@ -433,7 +910,10 @@ export default function Dashboard() {
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20">
                       <Link href="/dashboard" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                         <MapPin className="w-4 h-4 mr-2" /> Dashboard
-            </Link>
+                      </Link>
+                      <Link href="/rewards" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        <Gift className="w-4 h-4 mr-2" /> Rewards
+                      </Link>
                       <SignOutButton>
                         <button className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                           <X className="w-4 h-4 mr-2" /> Log out
@@ -448,183 +928,185 @@ export default function Dashboard() {
         </nav>
         </header>
 
+      {/* Desktop Content */}
+      <div className="hidden md:block min-h-screen">
+        <div className="h-screen">
+          <MapSection />
+        </div>
+      </div>
+
       {/* Mobile Content - Full Screen */}
       <div className="md:hidden fixed inset-0 z-0">
         {/* Map Tab */}
         {activeTab === 'map' && (
           <>
-          <GoogleMap
-          mapContainerStyle={defaultMapContainerStyle}
-          center={userLocation || center}
-          zoom={userLocation ? 14 : 13}
-          onLoad={onLoad}
-          onUnmount={onUnmount}
-          options={{
-            styles: mapStyles,
-            disableDefaultUI: true,
-            zoomControl: true,
-          }}
-        >
-          {filteredBooths.map((booth) => (
-            <Marker
-              key={booth.place_id}
-              position={{ lat: booth.geometry.location.lat, lng: booth.geometry.location.lng }}
-              onClick={() => handleMarkerClick(booth)}
-              icon={{
-                url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-                  <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="2" y="2" width="26" height="26" rx="6" fill="${booth.boothnow_enabled && booth.availability ? '#2E6A9C' : '#A3A3A3'}" stroke="white" stroke-width="2"/>
-                    <circle cx="15" cy="15" r="4" fill="white"/>
-                  </svg>
-                `)}`,
-                scaledSize: new google.maps.Size(30, 30),
-                anchor: new google.maps.Point(15, 15),
-              }}
-            />
-          ))}
+          <div className="h-full w-full relative">
+            <MobileMapSection />
+            
+            {/* Mobile Map Controls */}
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col space-y-3 z-10">
+              <button 
+                onClick={handleRecenter}
+                className="p-3 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors"
+                title="Center on my location"
+              >
+                <LocateFixed className="w-6 h-6 text-gray-700" />
+              </button>
+              <button 
+                onClick={() => setShowSearchField(!showSearchField)}
+                className="p-3 bg-white rounded-full shadow-md relative hover:bg-gray-50 transition-colors"
+                title="Search for locations"
+              >
+                <Search className="w-6 h-6 text-gray-700" />
+                <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full" />
+              </button>
+              <button 
+                onClick={() => setActiveTab('bookings')}
+                className="p-3 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors"
+                title="View bookings"
+              >
+                <Shield className="w-6 h-6 text-gray-700" />
+              </button>
+              <button 
+                onClick={() => setActiveTab('rewards')}
+                className="p-3 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors"
+                title="Help & support"
+              >
+                <LifeBuoy className="w-6 h-6 text-gray-700" />
+              </button>
+            </div>
 
-          {selectedBooth && (
-            <InfoWindow
-              position={{ lat: selectedBooth.geometry.location.lat, lng: selectedBooth.geometry.location.lng }}
-              onCloseClick={() => setSelectedBooth(null)}
+            {/* Find Nearby Booths Button */}
+            <button 
+              onClick={handleRecenter}
+              className="absolute bottom-28 left-1/2 -translate-x-1/2 px-6 py-3 bg-white rounded-full shadow-lg flex items-center space-x-2 z-10 hover:bg-gray-50 transition-colors"
+              title="Find nearby booths"
             >
-              <div className="p-4 max-w-xs font-inter">
-                <h3 className="font-semibold text-[#1A1A1A] text-lg mb-1">{selectedBooth.name}</h3>
-                <p className="text-sm text-gray-600 mb-2">{selectedBooth.formatted_address}</p>
+              <MapPin className="w-5 h-5 text-blue-600" />
+              <span className="text-gray-800 font-medium">Find nearby booths</span>
+            </button>
+          </div>
 
-                {userLocation && selectedBooth.distance !== undefined && (
-                  <p className="text-xs text-gray-500 mb-2">{Math.round(selectedBooth.distance / 100) / 10} km away</p>
-                )}
-
-                <div className="flex items-center space-x-2 mb-3">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: selectedBooth.boothnow_enabled && selectedBooth.availability ? '#2E6A9C' : '#A3A3A3' }}
+          {/* Search Field Overlay */}
+          {showSearchField && (
+            <div className="absolute top-4 left-4 right-4 z-20 search-field-overlay">
+              <div className="bg-white rounded-lg shadow-lg p-4">
+                <div className="flex items-center space-x-3">
+                  <Search className="w-5 h-5 text-gray-500" />
+                  <input
+                    type="text"
+                    placeholder="Search for locations..."
+                    value={searchQuery}
+                    onChange={handleSearchInputChange}
+                    className="flex-1 border-none outline-none text-gray-800 placeholder-gray-500"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setShowSearchField(false)
+                        setSearchQuery('')
+                        setSearchResults([])
+                      }
+                    }}
                   />
-                  <span className="text-sm font-medium text-[#1A1A1A]">
-                    {!selectedBooth.boothnow_enabled
-                      ? 'BoothNow not available'
-                      : selectedBooth.availability
-                        ? 'Available now'
-                        : 'Currently occupied'
-                    }
-                  </span>
+                  <button
+                    onClick={() => {
+                      setShowSearchField(false)
+                      setSearchQuery('')
+                      setSearchResults([])
+                    }}
+                    className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-500" />
+                  </button>
                 </div>
-
-                {selectedBooth.opening_hours && (
-                  <div className="text-xs text-gray-700 mb-3">
-                    <p className="font-medium">Hours:</p>
-                    {selectedBooth.opening_hours.weekday_text.map((text, i) => (
-                      <p key={i}>{text}</p>
+                <div className="mt-3 text-sm text-gray-600">
+                  Search for addresses, places, or 7-Eleven locations
+                </div>
+                
+                {/* Search Results */}
+                {searchResults.length > 0 && (
+                  <div className="mt-4 max-h-60 overflow-y-auto">
+                    {searchResults.map((result, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleSearchResultClick(result)}
+                        className="w-full text-left p-3 hover:bg-gray-50 rounded-lg transition-colors border-b border-gray-100 last:border-b-0"
+                      >
+                        <div className="flex items-start space-x-3">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                            <MapPin className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-900 truncate">
+                              {result.name}
+                            </div>
+                            <div className="text-sm text-gray-500 truncate">
+                              {result.formatted_address}
+                            </div>
+                            {result.opening_hours && (
+                              <div className="text-xs text-gray-400 mt-1">
+                                {result.opening_hours.open_now ? 'Open now' : 'Closed'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </button>
                     ))}
                   </div>
                 )}
-
-                <div className="flex gap-2 mt-4">
-                  <button className="flex-1 bg-[#2E6A9C] hover:bg-[#244E73] text-white text-sm font-medium px-4 py-2 rounded-md shadow-sm">
-                    Book this booth
-                  </button>
-                  {selectedBooth.url && (
-                    <a
-                      href={selectedBooth.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 text-center border border-[#E0E0E0] text-gray-700 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-md shadow-sm"
-                    >
-                      Open in map
-                    </a>
-                  )}
-                </div>
               </div>
-            </InfoWindow>
+            </div>
           )}
-        </GoogleMap>
 
         {/* Right Action Rail - Mobile Only */}
         <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col space-y-3 z-10">
-          <button className="p-3 bg-white rounded-full shadow-md">
+          <button 
+            onClick={handleRecenter}
+            className="p-3 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors"
+            title="Center on my location"
+          >
             <LocateFixed className="w-6 h-6 text-gray-700" />
           </button>
-          <button className="p-3 bg-white rounded-full shadow-md relative">
+          <button 
+            onClick={() => setShowSearchField(!showSearchField)}
+            className="p-3 bg-white rounded-full shadow-md relative hover:bg-gray-50 transition-colors"
+            title="Search for locations"
+          >
             <Search className="w-6 h-6 text-gray-700" />
             <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full" />
           </button>
-          <button className="p-3 bg-white rounded-full shadow-md">
+          <button 
+            onClick={() => setActiveTab('bookings')}
+            className="p-3 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors"
+            title="View bookings"
+          >
             <Shield className="w-6 h-6 text-gray-700" />
           </button>
-          <button className="p-3 bg-white rounded-full shadow-md">
+          <button 
+            onClick={() => setActiveTab('rewards')}
+            className="p-3 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors"
+            title="Help & support"
+          >
             <LifeBuoy className="w-6 h-6 text-gray-700" />
           </button>
         </div>
 
         {/* Find Nearby Booths Button - Mobile Only */}
-        <button className="absolute bottom-24 left-1/2 -translate-x-1/2 px-6 py-3 bg-white rounded-full shadow-lg flex items-center space-x-2 z-10">
+        <button 
+          onClick={handleRecenter}
+          className="absolute bottom-28 left-1/2 -translate-x-1/2 px-6 py-3 bg-white rounded-full shadow-lg flex items-center space-x-2 z-10 hover:bg-gray-50 transition-colors"
+          title="Find nearby booths"
+        >
           <MapPin className="w-5 h-5 text-gray-700" />
           <span className="text-gray-800 font-medium">Find nearby booths</span>
         </button>
           </>
         )}
 
-        {/* Sessions Tab */}
-        {activeTab === 'sessions' && (
-          <div className="h-full bg-white p-6 overflow-y-auto">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Recent Sessions</h2>
-            <div className="space-y-4">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">7-Eleven Stockholm Central</h3>
-                    <p className="text-sm text-gray-600">Storgatan 1, Stockholm</p>
-                    <p className="text-xs text-gray-500 mt-1">Yesterday, 2:30 PM - 3:15 PM</p>
-                  </div>
-                  <span className="text-sm font-medium text-green-600">45 min</span>
-                </div>
-                <div className="mt-3 flex items-center space-x-4 text-sm text-gray-600">
-                  <span className="flex items-center">
-                    <Shield className="w-4 h-4 mr-1" />
-                    Soundproof
-                  </span>
-                  <span className="flex items-center">
-                    <Wifi className="w-4 h-4 mr-1" />
-                    WiFi
-                  </span>
-                  <span className="flex items-center">
-                    <Clock className="w-4 h-4 mr-1" />
-                    €22.50
-                  </span>
-                </div>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">7-Eleven Gamla Stan</h3>
-                    <p className="text-sm text-gray-600">Västerlånggatan 1, Stockholm</p>
-                    <p className="text-xs text-gray-500 mt-1">Monday, 10:15 AM - 11:00 AM</p>
-                  </div>
-                  <span className="text-sm font-medium text-green-600">45 min</span>
-                </div>
-                <div className="mt-3 flex items-center space-x-4 text-sm text-gray-600">
-                  <span className="flex items-center">
-                    <Shield className="w-4 h-4 mr-1" />
-                    Soundproof
-                  </span>
-                  <span className="flex items-center">
-                    <Wifi className="w-4 h-4 mr-1" />
-                    WiFi
-                  </span>
-                  <span className="flex items-center">
-                    <Clock className="w-4 h-4 mr-1" />
-                    €22.50
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Bookings Tab */}
         {activeTab === 'bookings' && (
-          <div className="h-full bg-white p-6 overflow-y-auto">
+          <div className="h-full bg-white p-6 pb-24 overflow-y-auto">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">My Bookings</h2>
             <div className="space-y-4">
               <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
@@ -669,7 +1151,7 @@ export default function Dashboard() {
 
         {/* Scan Tab */}
         {activeTab === 'scan' && (
-          <div className="h-full bg-black flex flex-col items-center justify-center p-6">
+          <div className="h-full bg-black flex flex-col items-center justify-center p-6 pb-24">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-2">Scan QR Code</h2>
               <p className="text-gray-300">Point your camera at the booth QR code to unlock</p>
@@ -773,7 +1255,7 @@ export default function Dashboard() {
 
         {/* Profile Tab */}
         {activeTab === 'profile' && (
-          <div className="h-full bg-white p-6 overflow-y-auto">
+          <div className="h-full bg-white p-6 pb-24 overflow-y-auto">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Profile</h2>
             <div className="space-y-6">
               <div className="bg-gray-50 rounded-lg p-4">
@@ -810,6 +1292,59 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-3">Recent Sessions</h3>
+                <div className="space-y-4">
+                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-semibold text-gray-900">7-Eleven Stockholm Central</h4>
+                        <p className="text-sm text-gray-600">Storgatan 1, Stockholm</p>
+                        <p className="text-xs text-gray-500 mt-1">Yesterday, 2:30 PM - 3:15 PM</p>
+                      </div>
+                      <span className="text-sm font-medium text-green-600">45 min</span>
+                    </div>
+                    <div className="mt-3 flex items-center space-x-4 text-sm text-gray-600">
+                      <span className="flex items-center">
+                        <Shield className="w-4 h-4 mr-1" />
+                        Soundproof
+                      </span>
+                      <span className="flex items-center">
+                        <Wifi className="w-4 h-4 mr-1" />
+                        WiFi
+                      </span>
+                      <span className="flex items-center">
+                        <Clock className="w-4 h-4 mr-1" />
+                        €22.50
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-semibold text-gray-900">7-Eleven Gamla Stan</h4>
+                        <p className="text-sm text-gray-600">Västerlånggatan 1, Stockholm</p>
+                        <p className="text-xs text-gray-500 mt-1">Monday, 10:15 AM - 11:00 AM</p>
+                      </div>
+                      <span className="text-sm font-medium text-green-600">45 min</span>
+                    </div>
+                    <div className="mt-3 flex items-center space-x-4 text-sm text-gray-600">
+                      <span className="flex items-center">
+                        <Shield className="w-4 h-4 mr-1" />
+                        Soundproof
+                      </span>
+                      <span className="flex items-center">
+                        <Wifi className="w-4 h-4 mr-1" />
+                        WiFi
+                      </span>
+                      <span className="flex items-center">
+                        <Clock className="w-4 h-4 mr-1" />
+                        €22.50
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div className="space-y-3">
                 <button className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg">
                   Payment Methods
@@ -824,101 +1359,17 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        {/* Rewards Tab */}
+        {activeTab === 'rewards' && (
+          <div className="h-full bg-[#F3F3F3] p-4 pb-24 overflow-y-auto">
+            <Rewards />
+          </div>
+        )}
       </div>
 
       {/* Desktop Map Card */}
       <div className="hidden md:block mx-auto max-w-6xl px-6 py-6">
-        <div className="mb-8 overflow-hidden rounded-2xl border border-[#E0E0E0] bg-white shadow-sm">
-          <div className="h-[60vh] w-full">
-            <GoogleMap
-              mapContainerStyle={{ width: '100%', height: '100%' }}
-              center={userLocation || center}
-              zoom={userLocation ? 14 : 13}
-              onLoad={onLoad}
-              onUnmount={onUnmount}
-              options={{
-                styles: mapStyles,
-                disableDefaultUI: true,
-                zoomControl: true,
-              }}
-            >
-              {filteredBooths.map((booth) => (
-                <Marker
-                  key={booth.place_id}
-                  position={{ lat: booth.geometry.location.lat, lng: booth.geometry.location.lng }}
-                  onClick={() => handleMarkerClick(booth)}
-                  icon={{
-                    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-                      <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="2" y="2" width="26" height="26" rx="6" fill="${booth.boothnow_enabled && booth.availability ? '#2E6A9C' : '#A3A3A3'}" stroke="white" stroke-width="2"/>
-                        <circle cx="15" cy="15" r="4" fill="white"/>
-                      </svg>
-                    `)}`,
-                    scaledSize: new google.maps.Size(30, 30),
-                    anchor: new google.maps.Point(15, 15),
-                  }}
-                />
-              ))}
-
-              {selectedBooth && (
-                <InfoWindow
-                  position={{ lat: selectedBooth.geometry.location.lat, lng: selectedBooth.geometry.location.lng }}
-                  onCloseClick={() => setSelectedBooth(null)}
-                >
-                  <div className="p-4 max-w-xs font-inter">
-                    <h3 className="font-semibold text-[#1A1A1A] text-lg mb-1">{selectedBooth.name}</h3>
-                    <p className="text-sm text-gray-600 mb-2">{selectedBooth.formatted_address}</p>
-
-                    {userLocation && selectedBooth.distance !== undefined && (
-                      <p className="text-xs text-gray-500 mb-2">{Math.round(selectedBooth.distance / 100) / 10} km away</p>
-                    )}
-
-                    <div className="flex items-center space-x-2 mb-3">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: selectedBooth.boothnow_enabled && selectedBooth.availability ? '#2E6A9C' : '#A3A3A3' }}
-                      />
-                      <span className="text-sm font-medium text-[#1A1A1A]">
-                        {!selectedBooth.boothnow_enabled
-                          ? 'BoothNow not available'
-                          : selectedBooth.availability
-                            ? 'Available now'
-                            : 'Currently occupied'
-                        }
-                      </span>
-                    </div>
-
-                    {selectedBooth.opening_hours && (
-                      <div className="text-xs text-gray-700 mb-3">
-                        <p className="font-medium">Hours:</p>
-                        {selectedBooth.opening_hours.weekday_text.map((text, i) => (
-                          <p key={i}>{text}</p>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="flex gap-2 mt-4">
-                      <button className="flex-1 bg-[#2E6A9C] hover:bg-[#244E73] text-white text-sm font-medium px-4 py-2 rounded-md shadow-sm">
-                        Book this booth
-                      </button>
-                      {selectedBooth.url && (
-                        <a
-                          href={selectedBooth.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 text-center border border-[#E0E0E0] text-gray-700 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-md shadow-sm"
-                        >
-                          Open in map
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </InfoWindow>
-              )}
-            </GoogleMap>
-          </div>
-        </div>
-
         <div className="mb-6 text-sm text-[#6B7280]">Signed in as: {userId || 'guest'}</div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="rounded-xl border border-[#E0E0E0] bg-white p-6 shadow-sm">
@@ -942,11 +1393,11 @@ export default function Dashboard() {
           <span className={`text-xs mt-1 ${activeTab === 'map' ? 'font-medium' : ''}`}>Map</span>
         </button>
         <button 
-          onClick={() => setActiveTab('sessions')}
-          className={`flex flex-col items-center transition-colors ${activeTab === 'sessions' ? 'text-blue-600' : 'text-gray-500'}`}
+          onClick={() => setActiveTab('bookings')}
+          className={`flex flex-col items-center transition-colors ${activeTab === 'bookings' ? 'text-blue-600' : 'text-gray-500'}`}
         >
-          <Clock className="w-6 h-6" />
-          <span className={`text-xs mt-1 ${activeTab === 'sessions' ? 'font-medium' : ''}`}>Sessions</span>
+          <Shield className="w-6 h-6" />
+          <span className={`text-xs mt-1 ${activeTab === 'bookings' ? 'font-medium' : ''}`}>Bookings</span>
         </button>
         <button 
           onClick={() => setActiveTab('scan')}
@@ -958,11 +1409,11 @@ export default function Dashboard() {
           <span className="text-xs mt-1 text-blue-600 font-medium">Scan</span>
         </button>
         <button 
-          onClick={() => setActiveTab('bookings')}
-          className={`flex flex-col items-center transition-colors ${activeTab === 'bookings' ? 'text-blue-600' : 'text-gray-500'}`}
+          onClick={() => setActiveTab('rewards')}
+          className={`flex flex-col items-center transition-colors ${activeTab === 'rewards' ? 'text-blue-600' : 'text-gray-500'}`}
         >
-          <Shield className="w-6 h-6" />
-          <span className={`text-xs mt-1 ${activeTab === 'bookings' ? 'font-medium' : ''}`}>Bookings</span>
+          <Gift className="w-6 h-6" />
+          <span className={`text-xs mt-1 ${activeTab === 'rewards' ? 'font-medium' : ''}`}>Rewards</span>
         </button>
         <button 
           onClick={() => setActiveTab('profile')}

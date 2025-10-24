@@ -1,11 +1,286 @@
 "use client";
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import { boothService, Booth } from '../../services/boothService'
+import BoothInfoCard from '../ui/booth-info-card'
 
-// BoothNow Map - branded, minimal, with Places search and custom markers
+// Enhanced Booth interface with time-based information
+export interface EnhancedBooth extends Booth {
+  slotLengthMinutes?: number
+  freeUntil?: string
+}
+
+// Helper function to format booth status with readable messages
+function formatBoothStatus(booth: EnhancedBooth) {
+  const now = new Date()
+  const next = booth.next_available_at ? new Date(booth.next_available_at) : null
+  const freeUntil = booth.freeUntil ? new Date(booth.freeUntil) : null
+  const diffMin = next ? Math.max(0, Math.ceil((next.getTime() - now.getTime()) / 60000)) : 0
+  
+  switch (booth.status) {
+    case 'available':
+      return { 
+        label: 'Available now', 
+        sub: `Free for ${booth.slotLengthMinutes || 45} min`, 
+        color: 'green',
+        bgColor: '#E6F4EA',
+        textColor: '#27AE60'
+      }
+    case 'busy':
+      return { 
+        label: `Busy, free in ${diffMin} min`, 
+        sub: `Available again at ${next?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`, 
+        color: 'yellow',
+        bgColor: '#FEF3C7',
+        textColor: '#F1C40F'
+      }
+    case 'prebooked':
+      return { 
+        label: `Reserved until ${next?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`, 
+        sub: 'Next slot available afterward', 
+        color: 'red',
+        bgColor: '#FCE8E6',
+        textColor: '#E74C3C'
+      }
+    case 'maintenance':
+      return { 
+        label: 'Under maintenance', 
+        sub: 'Temporarily unavailable', 
+        color: 'gray',
+        bgColor: '#F3F4F6',
+        textColor: '#BDC3C7'
+      }
+    default:
+      return { 
+        label: 'Status unknown', 
+        sub: 'Check availability', 
+        color: 'blue',
+        bgColor: '#E6F4EA',
+        textColor: '#2E6A9C'
+      }
+  }
+}
+
+// Enhanced BoothNow Map with live status indicators and booking interface
 export function MapSection() {
   const mapRef = useRef<HTMLDivElement>(null)
-  const searchRef = useRef<HTMLInputElement>(null)
+  const mapInstanceRef = useRef<google.maps.Map | null>(null)
+  const [selectedStatus, setSelectedStatus] = useState<string>('all')
+  const [booths, setBooths] = useState<EnhancedBooth[]>([])
+  const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Enhanced booth data model with time-based information - All 7-Eleven locations
+  const mockBooths: EnhancedBooth[] = [
+    {
+      id: '1',
+      partner: '7-Eleven',
+      name: '7-Eleven Sveavägen',
+      address: 'Sveavägen 55, 113 59 Stockholm, Sweden',
+      lat: 59.3423,
+      lng: 18.0554,
+      status: 'available',
+      next_available_at: null,
+      timeRemaining: null,
+      slotLengthMinutes: 45,
+      freeUntil: new Date(Date.now() + 45 * 60000).toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '2',
+      partner: '7-Eleven',
+      name: '7-Eleven Odenplan',
+      address: 'Odengatan 72, 113 22 Stockholm, Sweden',
+      lat: 59.3428,
+      lng: 18.0492,
+      status: 'busy',
+      next_available_at: new Date(Date.now() + 22 * 60000).toISOString(),
+      timeRemaining: 22,
+      slotLengthMinutes: 45,
+      freeUntil: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '3',
+      partner: '7-Eleven',
+      name: '7-Eleven T-Centralen',
+      address: 'Vasagatan 10, 111 20 Stockholm, Sweden',
+      lat: 59.3322,
+      lng: 18.0628,
+      status: 'prebooked',
+      next_available_at: new Date(Date.now() + 45 * 60000).toISOString(),
+      timeRemaining: null,
+      slotLengthMinutes: 45,
+      freeUntil: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '4',
+      partner: '7-Eleven',
+      name: '7-Eleven Stureplan',
+      address: 'Sturegatan 8, 114 35 Stockholm, Sweden',
+      lat: 59.3384,
+      lng: 18.0734,
+      status: 'maintenance',
+      next_available_at: new Date(Date.now() + 120 * 60000).toISOString(),
+      timeRemaining: null,
+      slotLengthMinutes: 45,
+      freeUntil: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '5',
+      partner: '7-Eleven',
+      name: '7-Eleven Gamla Stan',
+      address: 'Västerlånggatan 1, 111 29 Stockholm, Sweden',
+      lat: 59.3258,
+      lng: 18.0703,
+      status: 'available',
+      next_available_at: null,
+      timeRemaining: null,
+      slotLengthMinutes: 45,
+      freeUntil: new Date(Date.now() + 30 * 60000).toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '6',
+      partner: '7-Eleven',
+      name: '7-Eleven Södermalm',
+      address: 'Götgatan 12, 118 46 Stockholm, Sweden',
+      lat: 59.3158,
+      lng: 18.0712,
+      status: 'busy',
+      next_available_at: new Date(Date.now() + 15 * 60000).toISOString(),
+      timeRemaining: 15,
+      slotLengthMinutes: 45,
+      freeUntil: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '7',
+      partner: '7-Eleven',
+      name: '7-Eleven Kungsholmen',
+      address: 'Fleminggatan 10, 112 26 Stockholm, Sweden',
+      lat: 59.3309,
+      lng: 18.0487,
+      status: 'available',
+      next_available_at: null,
+      timeRemaining: null,
+      slotLengthMinutes: 45,
+      freeUntil: new Date(Date.now() + 60 * 60000).toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '8',
+      partner: '7-Eleven',
+      name: '7-Eleven Östermalm',
+      address: 'Sturegatan 20, 114 36 Stockholm, Sweden',
+      lat: 59.3392,
+      lng: 18.0745,
+      status: 'prebooked',
+      next_available_at: new Date(Date.now() + 90 * 60000).toISOString(),
+      timeRemaining: null,
+      slotLengthMinutes: 45,
+      freeUntil: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '9',
+      partner: '7-Eleven',
+      name: '7-Eleven Vasastan',
+      address: 'Sveavägen 25, 111 34 Stockholm, Sweden',
+      lat: 59.3401,
+      lng: 18.0589,
+      status: 'busy',
+      next_available_at: new Date(Date.now() + 35 * 60000).toISOString(),
+      timeRemaining: 35,
+      slotLengthMinutes: 45,
+      freeUntil: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '10',
+      partner: '7-Eleven',
+      name: '7-Eleven Hornstull',
+      address: 'Hornsgatan 100, 117 26 Stockholm, Sweden',
+      lat: 59.3198,
+      lng: 18.0567,
+      status: 'available',
+      next_available_at: null,
+      timeRemaining: null,
+      slotLengthMinutes: 45,
+      freeUntil: new Date(Date.now() + 25 * 60000).toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '11',
+      partner: '7-Eleven',
+      name: '7-Eleven Fridhemsplan',
+      address: 'Fridhemsplan 2, 112 40 Stockholm, Sweden',
+      lat: 59.3315,
+      lng: 18.0412,
+      status: 'maintenance',
+      next_available_at: new Date(Date.now() + 180 * 60000).toISOString(),
+      timeRemaining: null,
+      slotLengthMinutes: 45,
+      freeUntil: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: '12',
+      partner: '7-Eleven',
+      name: '7-Eleven Slussen',
+      address: 'Götgatan 1, 118 30 Stockholm, Sweden',
+      lat: 59.3194,
+      lng: 18.0715,
+      status: 'busy',
+      next_available_at: new Date(Date.now() + 8 * 60000).toISOString(),
+      timeRemaining: 8,
+      slotLengthMinutes: 45,
+      freeUntil: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  ]
+
+  // Load booths and set up real-time updates
+  useEffect(() => {
+    const loadBooths = async () => {
+      try {
+        setIsLoading(true)
+        const fetchedBooths = await boothService.fetchBooths(selectedStatus)
+        setBooths(fetchedBooths.length > 0 ? fetchedBooths : mockBooths)
+      } catch (error) {
+        console.error('Error loading booths:', error)
+        setBooths(mockBooths) // Fallback to mock data
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadBooths()
+
+    // Subscribe to real-time updates
+    const unsubscribe = boothService.subscribeToBoothUpdates((updatedBooths) => {
+      setBooths(updatedBooths)
+    })
+
+    return () => {
+      unsubscribe()
+    }
+  }, [selectedStatus])
 
   useEffect(() => {
     const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
@@ -38,8 +313,8 @@ export function MapSection() {
         disableDefaultUI: true,
         styles: styledJson,
       })
-
-      // UI: add zoom and locate controls (minimal)
+      
+      mapInstanceRef.current = map
       map.setOptions({ zoomControl: true, fullscreenControl: false, mapTypeControl: false, streetViewControl: false })
 
       // Compute distance in meters
@@ -53,18 +328,17 @@ export function MapSection() {
         return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x))
       }
 
-      let userPos: google.maps.LatLngLiteral | null = null
-
       // Geolocate helper
       const locate = () => {
         if (!navigator.geolocation) return
         navigator.geolocation.getCurrentPosition(
           (res) => {
-            userPos = { lat: res.coords.latitude, lng: res.coords.longitude }
-            map.panTo(userPos)
+            const pos = { lat: res.coords.latitude, lng: res.coords.longitude }
+            setUserLocation(pos)
+            map.panTo(pos)
             map.setZoom(14)
             new google.maps.Marker({
-              position: userPos,
+              position: pos,
               map,
               icon: {
                 url: 'data:image/svg+xml;utf8,' +
@@ -82,163 +356,231 @@ export function MapSection() {
         )
       }
 
-      // Add a small locate button
-      const locateBtn = document.createElement('button')
-      locateBtn.textContent = 'Use my location'
-      locateBtn.className = 'px-3 py-1.5 rounded-full bg-white border border-[#E0E0E0] text-sm shadow-sm hover:bg-[#FAFAFA]'
-      map.controls[google.maps.ControlPosition.TOP_LEFT].push(locateBtn)
-      locateBtn.addEventListener('click', locate)
+      // Expose locate function globally
+      ;(window as any).recenterMap = locate
 
-      // Filters: basic available-now chip (demo)
-      const chips = document.createElement('div')
-      chips.className = 'flex gap-2 ml-2'
-      const chip = document.createElement('button')
-      chip.textContent = 'Available now'
-      chip.className = 'px-3 py-1.5 rounded-full bg-white border border-[#E0E0E0] text-sm shadow-sm hover:bg-[#FAFAFA]'
-      chips.appendChild(chip)
-      map.controls[google.maps.ControlPosition.TOP_LEFT].push(chips)
+      // Status-based booth icons with colors and animations
+      const getBoothIcon = (status: string, isPulsing: boolean = false) => {
+        const colors = {
+          available: '#27AE60', // Green (BoothNow brand)
+          busy: '#F1C40F',      // Yellow
+          prebooked: '#E74C3C', // Red
+          maintenance: '#BDC3C7' // Gray
+        }
+        
+        const icons = {
+          available: 'circle',
+          busy: 'clock',
+          prebooked: 'lock',
+          maintenance: 'wrench'
+        }
 
-      // Search input + autocomplete
-      if (searchRef.current) {
-        searchRef.current.placeholder = 'Find a booth or enter location'
-        const ac = new google.maps.places.Autocomplete(searchRef.current, {
-          fields: ['geometry'],
-          types: ['geocode'],
-        })
-        ac.addListener('place_changed', () => {
-          const place = ac.getPlace() as any
-          const loc = place?.geometry?.location
-          if (loc) {
-            map.panTo({ lat: loc.lat(), lng: loc.lng() })
-            map.setZoom(14)
-          }
-        })
+        const color = colors[status as keyof typeof colors] || '#2E6A9C'
+        const icon = icons[status as keyof typeof icons] || 'help-circle'
+        const opacity = status === 'maintenance' ? '0.6' : '1'
+        
+        // Add pulsing animation for available booths
+        const pulseAnimation = isPulsing && status === 'available' ? `
+          <animate attributeName="opacity" values="1;0.7;1" dur="2s" repeatCount="indefinite"/>
+        ` : ''
+
+        return {
+          url: 'data:image/svg+xml;utf8,' +
+            encodeURIComponent(
+              `<svg width="32" height="40" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.3)"/>
+                  </filter>
+                </defs>
+                <g opacity="${opacity}">
+                  <rect x="8" y="6" width="16" height="26" rx="4" fill="${color}" stroke="white" stroke-width="3" filter="url(#shadow)">
+                    ${pulseAnimation}
+                  </rect>
+                  <circle cx="16" cy="36" r="4" fill="${color}" stroke="white" stroke-width="3">
+                    ${pulseAnimation}
+                  </circle>
+                  <text x="16" y="20" text-anchor="middle" fill="white" font-size="12" font-family="Arial">${icon === 'circle' ? '●' : icon === 'clock' ? '🕐' : icon === 'lock' ? '🔒' : '🔧'}</text>
+                </g>
+              </svg>`
+            ),
+          scaledSize: new google.maps.Size(32, 40),
+          anchor: new google.maps.Point(16, 40),
+        }
       }
 
-      // Custom booth icon (rounded rectangle silhouette)
-      const boothIcon = (color: string, outline = 'white') => ({
-        url:
-          'data:image/svg+xml;utf8,' +
-          encodeURIComponent(
-            `<svg width="28" height="36" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg">
-              <rect x="6" y="4" width="16" height="24" rx="4" fill="${color}" stroke="${outline}" stroke-width="3"/>
-              <circle cx="14" cy="33" r="3" fill="${color}" stroke="${outline}" stroke-width="3"/>
-            </svg>`
-          ),
-        scaledSize: new google.maps.Size(28, 36),
-        anchor: new google.maps.Point(14, 34),
-      })
+      // Enhanced info card renderer using React component
+      const renderBoothCard = (booth: EnhancedBooth) => {
+        const infoWindowContent = document.createElement('div')
+        const root = createRoot(infoWindowContent)
 
-      // Info card renderer (BoothNow-styled)
-      const renderCard = (opts: {
-        title: string
-        address?: string
-        openNow?: boolean
-        url?: string
-        distance?: number | null
-      }) => {
-        const { title, address, openNow, url, distance } = opts
-        const distText = typeof distance === 'number' ? `${Math.round(distance)} m away` : ''
-        const statusHtml = typeof openNow === 'boolean'
-          ? `<span style="padding:2px 8px;border-radius:999px;font-size:12px;background:${openNow ? '#E6F4EA' : '#FCE8E6'};color:${openNow ? '#137333' : '#B3261E'}">${openNow ? 'Available now' : 'Occupied'}</span>`
-          : ''
-        const link = url || '#'
-        return `
-          <div style="font-family:Inter,ui-sans-serif,-apple-system;min-width:240px;max-width:280px;background:#fff;border:1px solid #E0E0E0;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,0.08);padding:12px">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-              <span style="font-size:16px">🏪</span>
-              <div style="font-weight:600;color:#1A1A1A;flex:1">${title}</div>
-            </div>
-            ${address ? `<div style="color:#666;font-size:13px;margin-bottom:6px">${address}</div>` : ''}
-            <div style="display:flex;align-items:center;gap:8px;justify-content:space-between">
-              <div style="color:#666;font-size:12px">${distText}</div>
-              ${statusHtml}
-            </div>
-            <div style="display:flex;gap:8px;margin-top:10px">
-              <a href="/dashboard" style="flex:1;text-align:center;background:#2E6A9C;color:#fff;padding:8px 10px;border-radius:999px;text-decoration:none;font-size:13px">Book this booth</a>
-              <a target="_blank" rel="noreferrer" href="${link}" style="flex:1;text-align:center;background:#fff;border:1px solid #E0E0E0;color:#1A1A1A;padding:8px 10px;border-radius:999px;text-decoration:none;font-size:13px">Open in map</a>
-            </div>
-          </div>`
+        root.render(
+          <BoothInfoCard
+            booth={booth}
+            userLocation={userLocation}
+            handleBoothAction={handleBoothAction}
+            dist={dist}
+          />
+        )
+
+        return infoWindowContent
       }
+
+      // Add custom CSS to remove InfoWindow default styling
+      const style = document.createElement('style')
+      style.textContent = `
+        .gm-style-iw {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        .gm-style-iw-d {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          overflow: visible !important;
+        }
+        .gm-style-iw-c {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        .gm-style-iw-tc {
+          display: none !important;
+        }
+      `
+      document.head.appendChild(style)
 
       const info = new google.maps.InfoWindow({
         content: '',
         ariaLabel: 'Booth details',
+        disableAutoPan: false,
+        maxWidth: 300,
+        pixelOffset: new google.maps.Size(0, -10)
       })
 
-      // Places service
-      // @ts-ignore
-      const service: google.maps.places.PlacesService = new google.maps.places.PlacesService(map)
-
-      type BoothMeta = { marker: google.maps.Marker; available: boolean; placeId?: string; latlng: google.maps.LatLngLiteral; title: string; address?: string; url?: string }
-      const allMarkers: BoothMeta[] = []
-
-      const addMarker = (p: { lat: number; lng: number; title: string; address?: string; placeId?: string; openNow?: boolean; url?: string }) => {
-        const available = typeof p.openNow === 'boolean' ? p.openNow : true
-        const marker = new google.maps.Marker({
-          position: { lat: p.lat, lng: p.lng },
-          map,
-          title: p.title,
-          icon: boothIcon(available ? '#2E6A9C' : '#9CA3AF'),
-        })
-        const meta: BoothMeta = { marker, available, placeId: p.placeId, latlng: { lat: p.lat, lng: p.lng }, title: p.title, address: p.address, url: p.url }
-        allMarkers.push(meta)
-
-        marker.addListener('click', () => {
-          if (p.placeId) {
-            service.getDetails({ placeId: p.placeId, fields: ['name','formatted_address','opening_hours','url','geometry'] }, (detail: any, status: string) => {
-              const ok = status === google.maps.places.PlacesServiceStatus.OK && detail
-              const hours = ok ? detail.opening_hours : undefined
-              const d = userPos ? dist(userPos, meta.latlng) : null
-              info.close()
-              info.setContent(
-                renderCard({
-                  title: (ok && detail.name) || p.title,
-                  address: (ok && detail.formatted_address) || p.address,
-                  openNow: hours?.isOpen ? hours.isOpen() : hours?.open_now,
-                  url: (ok && detail.url) || p.url,
-                  distance: d,
-                })
-              )
-              info.open({ map, anchor: marker })
-            })
-          } else {
-            const d = userPos ? dist(userPos, meta.latlng) : null
-            info.close()
-            info.setContent(renderCard({ title: p.title, address: p.address, distance: d }))
-            info.open({ map, anchor: marker })
+      // Enhanced booth action handler
+      const handleBoothAction = async (boothId: string, action: string) => {
+        console.log(`Booth ${boothId} action: ${action}`)
+        
+        try {
+          let result
+          switch (action) {
+            case 'book':
+              result = await boothService.bookBooth(boothId)
+              if (result.success) {
+                alert('Booth booked successfully!')
+                // Update booth status in state
+                setBooths(prevBooths => 
+                  prevBooths.map(booth => 
+                    booth.id === boothId 
+                      ? { ...booth, status: 'busy', timeRemaining: 60, next_available_at: new Date(Date.now() + 60 * 60000).toISOString() }
+                      : booth
+                  )
+                )
+              } else {
+                alert(`Booking failed: ${result.error}`)
+              }
+              break
+            case 'prebook':
+              const startTime = new Date(Date.now() + 60 * 60000).toISOString() // 1 hour from now
+              result = await boothService.prebookBooth(boothId, startTime)
+              if (result.success) {
+                alert('Booth pre-booked successfully!')
+                // Update booth status in state
+                setBooths(prevBooths => 
+                  prevBooths.map(booth => 
+                    booth.id === boothId 
+                      ? { ...booth, status: 'prebooked', next_available_at: startTime }
+                      : booth
+                  )
+                )
+              } else {
+                alert(`Pre-booking failed: ${result.error}`)
+              }
+              break
+            case 'waitlist':
+              result = await boothService.joinWaitlist(boothId)
+              if (result.success) {
+                alert('Added to waitlist!')
+              } else {
+                alert(`Waitlist failed: ${result.error}`)
+              }
+              break
+            case 'notify':
+              alert('You will be notified when this booth becomes available!')
+              break
+            default:
+              alert(`Action: ${action} for booth ${boothId}`)
           }
-        })
+        } catch (error) {
+          console.error('Error handling booth action:', error)
+          alert('An error occurred. Please try again.')
+        }
       }
 
-      // Filter chip: Available now
-      chip.addEventListener('click', () => {
-        const active = chip.getAttribute('data-active') === '1'
-        chip.setAttribute('data-active', active ? '0' : '1')
-        chip.style.background = active ? '#FFFFFF' : '#EEF2F6'
-        allMarkers.forEach((m) => m.marker.setVisible(active ? true : m.available))
-      })
+      // Make handleBoothAction globally accessible for the React component
+      ;(window as any).handleBoothAction = handleBoothAction
 
-      // Search places near Stockholm for 7‑Eleven
-      const request = { query: '7-Eleven', location: stockholm, radius: 15000 }
-      service.textSearch(request, function handle(results: any, status: string, pagination: any) {
-        if (status === google.maps.places.PlacesServiceStatus.OK && Array.isArray(results)) {
-          results.forEach((r) => {
-            const loc = r.geometry?.location
-            if (!loc) return
-            addMarker({
-              lat: loc.lat(),
-              lng: loc.lng(),
-              title: r.name || '7‑Eleven',
-              address: r.formatted_address || r.vicinity || '',
-              placeId: r.place_id,
-              openNow: r.opening_hours?.open_now,
-              url: r.url,
-            })
-          })
-          if (pagination?.hasNextPage) setTimeout(() => pagination.nextPage(), 1000)
+      // Add markers for booths with enhanced animations
+      const addBoothMarkers = (boothsToShow: EnhancedBooth[]) => {
+        // Clear existing markers
+        if ((window as any).boothMarkers) {
+          (window as any).boothMarkers.forEach((marker: google.maps.Marker) => marker.setMap(null))
         }
-      })
+        
+        const markers: google.maps.Marker[] = []
+        
+        boothsToShow.forEach((booth) => {
+          // Check if booth is almost available (within 10 minutes)
+          const isAlmostAvailable = booth.status === 'busy' && booth.timeRemaining && booth.timeRemaining <= 10
+          const isPulsing = booth.status === 'available' || isAlmostAvailable
+          
+          const marker = new google.maps.Marker({
+            position: { lat: booth.lat, lng: booth.lng },
+            map,
+            title: booth.name,
+            icon: getBoothIcon(booth.status, isPulsing),
+            animation: google.maps.Animation.DROP,
+          })
+
+          marker.addListener('click', () => {
+            // Close any existing info window first
+            info.close()
+            
+            // Add click animation
+            marker.setAnimation(google.maps.Animation.BOUNCE)
+            setTimeout(() => marker.setAnimation(null), 600)
+            
+            // Open new info window
+            info.setContent(renderBoothCard(booth))
+            info.open({ map, anchor: marker })
+          })
+
+          // Add hover effect with enhanced animation
+          marker.addListener('mouseover', () => {
+            marker.setAnimation(google.maps.Animation.BOUNCE)
+            setTimeout(() => marker.setAnimation(null), 1000)
+          })
+
+          markers.push(marker)
+        })
+        
+        ;(window as any).boothMarkers = markers
+      }
+
+      // Filter booths based on selected status
+      const filteredBooths = selectedStatus === 'all' 
+        ? booths 
+        : booths.filter(booth => booth.status === selectedStatus)
+      
+      addBoothMarkers(filteredBooths)
     }
 
     if (existing) {
@@ -254,21 +596,168 @@ export function MapSection() {
     script.defer = true
     script.addEventListener('load', init, { once: true })
     document.head.appendChild(script)
+  }, [booths, selectedStatus, userLocation])
+
+  // Auto-refresh booth status every 60 seconds with enhanced animations
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBooths(prevBooths => 
+        prevBooths.map(booth => {
+          if (booth.status === 'busy' && booth.timeRemaining && booth.timeRemaining > 0) {
+            const newTimeRemaining = booth.timeRemaining - 1
+            
+            // If time runs out, change status to available
+            if (newTimeRemaining <= 0) {
+              // Trigger status change animation
+              setTimeout(() => {
+                if ((window as any).boothMarkers) {
+                  const marker = (window as any).boothMarkers.find((m: any) => 
+                    m.getTitle() === booth.name
+                  )
+                  if (marker) {
+                    // Flash green animation for status change
+                    marker.setAnimation(google.maps.Animation.BOUNCE)
+                    setTimeout(() => marker.setAnimation(null), 2000)
+                  }
+                }
+              }, 1000)
+              
+              return { 
+                ...booth, 
+                status: 'available' as const,
+                timeRemaining: null,
+                next_available_at: null,
+                freeUntil: new Date(Date.now() + (booth.slotLengthMinutes || 45) * 60000).toISOString()
+              }
+            }
+            
+            return { ...booth, timeRemaining: newTimeRemaining }
+          }
+          
+          // Update freeUntil for available booths
+          if (booth.status === 'available' && booth.freeUntil) {
+            const freeUntil = new Date(booth.freeUntil)
+            const now = new Date()
+            if (freeUntil <= now) {
+              // Booth is no longer free, change to busy
+              return {
+                ...booth,
+                status: 'busy' as const,
+                timeRemaining: 30, // 30 minutes busy time
+                next_available_at: new Date(Date.now() + 30 * 60000).toISOString(),
+                freeUntil: null
+              }
+            }
+          }
+          
+          return booth
+        })
+      )
+    }, 60000) // Changed to 60 seconds
+
+    return () => clearInterval(interval)
   }, [])
 
+  // Add status change flash effect
+  const triggerStatusChangeAnimation = (boothId: string, newStatus: string) => {
+    if ((window as any).boothMarkers) {
+      const marker = (window as any).boothMarkers.find((m: any) => 
+        m.getTitle().includes(boothId)
+      )
+      if (marker) {
+        // Flash animation for status changes
+        marker.setAnimation(google.maps.Animation.BOUNCE)
+        setTimeout(() => marker.setAnimation(null), 1500)
+      }
+    }
+  }
+
   return (
-    <section className="bg-[#F5F4F2]">
-      <div className="mx-auto max-w-6xl px-6 py-16">
-        <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <h2 className="text-[24px] font-medium text-[#1A1A1A]">Find your nearest booth.</h2>
-          <div className="flex w-full items-center gap-3 md:w-auto">
-            <input ref={searchRef} className="w-full md:w-[320px] rounded-full border border-[#E0E0E0] bg-white px-4 py-2 text-sm shadow-sm outline-none" placeholder="Find a booth or enter location" />
+    <section className="bg-[#F9FAFB] py-20">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-[#1A1A1A] mb-4">
+            Find a Booth That Fits Your Schedule
+          </h2>
+          <p className="text-lg text-[#666] max-w-2xl mx-auto">
+            Instant access or pre-book your preferred time. Live booth availability updated in real time.
+          </p>
+        </div>
+        
+        {/* Status Filter Toggle */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-white rounded-full p-1 shadow-sm border border-[#E6E6E6]">
+            {['all', 'available', 'busy', 'prebooked'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setSelectedStatus(status)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  selectedStatus === status
+                    ? 'bg-[#2E6A9C] text-white shadow-sm'
+                    : 'text-[#666] hover:text-[#1A1A1A] hover:bg-[#F9FAFB]'
+                }`}
+              >
+                {status === 'all' ? 'All' : 
+                 status === 'available' ? 'Available' :
+                 status === 'busy' ? 'Busy' : 'Pre-booked'}
+              </button>
+            ))}
           </div>
         </div>
-        <div className="overflow-hidden rounded-2xl border border-[#E0E0E0] shadow-sm">
-          <div ref={mapRef} className="h-[460px] w-full" />
+        
+        <div className="bg-white rounded-2xl shadow-sm border border-[#E6E6E6] overflow-hidden relative">
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#2E6A9C] border-t-transparent"></div>
+                <span className="text-[#666] font-medium">Loading booth availability...</span>
+              </div>
+            </div>
+          )}
+          <div className="h-96 w-full">
+            <div ref={mapRef} className="h-full w-full" />
+          </div>
         </div>
-        <p className="mt-3 text-sm text-[#666]">Live map powered by Google Maps JavaScript API. 7‑Eleven locations via Places. Design tuned for BoothNow’s calm identity.</p>
+        
+        {/* Enhanced Status Legend */}
+        <div className="mt-6 flex justify-center">
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-[#E6E6E6]">
+            <div className="text-sm font-medium text-[#1A1A1A] mb-3 text-center">Booth Status</div>
+            <div className="flex gap-6 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-[#27AE60]"></div>
+                <span className="text-[#666]">Available</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-[#F1C40F]"></div>
+                <span className="text-[#666]">Busy</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-[#E74C3C]"></div>
+                <span className="text-[#666]">Pre-booked</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-[#BDC3C7] opacity-60"></div>
+                <span className="text-[#666]">Maintenance</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="mt-6 flex justify-center gap-4">
+          <button 
+            onClick={() => (window as any).recenterMap?.()}
+            className="bg-[#2E6A9C] text-white px-6 py-2 rounded-full text-sm font-medium hover:bg-[#1e4a6b] transition-colors"
+          >
+            📍 Find My Location
+          </button>
+          <button 
+            onClick={() => window.location.href = '/dashboard'}
+            className="bg-white border border-[#E6E6E6] text-[#1A1A1A] px-6 py-2 rounded-full text-sm font-medium hover:bg-[#F9FAFB] transition-colors"
+          >
+            🏪 View All Booths
+          </button>
+        </div>
       </div>
     </section>
   )

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { stripe, posthog } from '../services';
+import { stripe } from '../services';
 import { AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
@@ -27,17 +27,6 @@ router.post('/create-intent', async (req: AuthenticatedRequest, res) => {
       description: `BoothNow session - Booth ${booth_id}`
     });
 
-    // Track analytics
-    posthog.capture({
-      distinctId: req.userId!,
-      event: 'payment_intent_created',
-      properties: {
-        amount,
-        currency,
-        booth_id,
-        payment_intent_id: paymentIntent.id
-      }
-    });
 
     res.json({
       client_secret: paymentIntent.client_secret,
@@ -65,16 +54,6 @@ router.post('/capture', async (req: AuthenticatedRequest, res) => {
       amount ? { amount_to_capture: Math.round(amount * 100) } : {}
     );
 
-    // Track analytics
-    posthog.capture({
-      distinctId: req.userId!,
-      event: 'payment_captured',
-      properties: {
-        payment_intent_id,
-        amount: paymentIntent.amount_received / 100,
-        currency: paymentIntent.currency
-      }
-    });
 
     res.json({
       payment_intent: paymentIntent,
@@ -121,16 +100,6 @@ router.post('/create-subscription', async (req: AuthenticatedRequest, res) => {
       }
     });
 
-    // Track analytics
-    posthog.capture({
-      distinctId: req.userId!,
-      event: 'subscription_created',
-      properties: {
-        subscription_id: subscription.id,
-        price_id,
-        status: subscription.status
-      }
-    });
 
     res.json({
       subscription,

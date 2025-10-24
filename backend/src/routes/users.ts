@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase, posthog } from '../services';
+import { supabase } from '../services';
 import { AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
@@ -71,15 +71,6 @@ router.put('/profile', async (req: AuthenticatedRequest, res) => {
       return res.status(500).json({ error: 'Failed to update user profile' });
     }
 
-    // Track analytics
-    posthog.capture({
-      distinctId: req.userId!,
-      event: 'profile_updated',
-      properties: {
-        has_phone: !!phone_number,
-        has_preferences: !!preferences
-      }
-    });
 
     res.json({ user });
 

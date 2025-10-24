@@ -7,7 +7,7 @@ This guide will help you set up the complete BoothNow platform with all integrat
 - Node.js 18+ and npm
 - Expo CLI for mobile development
 - Git
-- Accounts for: Clerk, Supabase, Google Cloud, Stripe, PostHog
+- Accounts for: Clerk, Supabase, Google Cloud, Stripe
 
 ## 1. Clone and Install Dependencies
 
@@ -32,7 +32,6 @@ Required services:
 - **Supabase**: Create project at [supabase.com](https://supabase.com)
 - **Google Maps**: Enable APIs at [Google Cloud Console](https://console.cloud.google.com)
 - **Stripe**: Get keys from [stripe.com](https://stripe.com)
-- **PostHog**: Get key from [posthog.com](https://posthog.com)
 
 ### Frontend (Mobile)
 Copy `frontend/env.example` to `frontend/.env`:
@@ -83,10 +82,6 @@ cp env.example .env.local
 3. Set up webhook endpoints
 4. Configure products and pricing
 
-### PostHog Analytics
-1. Create PostHog project
-2. Get project API key
-3. Configure event tracking
 
 ## 5. Development Setup
 
@@ -149,10 +144,6 @@ expo build:ios
 
 ## 8. Monitoring and Analytics
 
-### PostHog Dashboard
-- Set up funnels for user conversion
-- Track session metrics
-- Monitor user behavior
 
 ### Stripe Dashboard
 - Monitor payment success rates

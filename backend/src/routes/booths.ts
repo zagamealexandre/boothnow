@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase, posthog } from '../services';
+import { supabase } from '../services';
 import { AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
@@ -27,15 +27,6 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
       return res.status(500).json({ error: 'Failed to fetch booths' });
     }
 
-    // Track analytics
-    posthog.capture({
-      distinctId: req.userId!,
-      event: 'booths_viewed',
-      properties: {
-        count: booths?.length || 0,
-        location: lat && lng ? { lat: parseFloat(lat as string), lng: parseFloat(lng as string) } : null
-      }
-    });
 
     res.json({ booths: booths || [] });
 
@@ -65,16 +56,6 @@ router.get('/:id', async (req: AuthenticatedRequest, res) => {
       return res.status(404).json({ error: 'Booth not found' });
     }
 
-    // Track analytics
-    posthog.capture({
-      distinctId: req.userId!,
-      event: 'booth_viewed',
-      properties: {
-        booth_id: id,
-        partner: booth.partner,
-        location: { lat: booth.lat, lng: booth.lng }
-      }
-    });
 
     res.json({ booth });
 
@@ -129,17 +110,6 @@ router.post('/:id/reserve', async (req: AuthenticatedRequest, res) => {
       .update({ availability: false })
       .eq('id', id);
 
-    // Track analytics
-    posthog.capture({
-      distinctId: req.userId!,
-      event: 'booth_reserved',
-      properties: {
-        booth_id: id,
-        partner: booth.partner,
-        duration_minutes,
-        reservation_id: reservation.id
-      }
-    });
 
     res.json({ 
       reservation,

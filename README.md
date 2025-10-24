@@ -1,12 +1,12 @@
 # BoothNow - On-Demand Micro-Workspaces
 
-BoothNow is a mobile-first platform for on-demand, soundproof micro-workspaces embedded within high-traffic convenience stores, starting with 7-Eleven in Stockholm.
+BoothNow is a web-based platform for on-demand, soundproof micro-workspaces embedded within high-traffic convenience stores, starting with 7-Eleven in Stockholm.
 
 ## 🚀 Features
 
 - **Real-time Booth Discovery** - Find available booths using Google Maps integration
 - **QR Code Scanning** - Unlock booths with your phone's camera
-- **Mobile-First Design** - Optimized for mobile with Voi-inspired UI
+- **Mobile-Responsive Design** - Optimized for mobile with Voi-inspired UI
 - **Session Management** - Track your workspace sessions and bookings
 - **Secure Authentication** - Powered by Clerk for seamless user experience
 
@@ -14,7 +14,6 @@ BoothNow is a mobile-first platform for on-demand, soundproof micro-workspaces e
 
 ### Frontend
 - **Next.js 14** - React framework for web dashboard
-- **React Native** - Mobile app framework
 - **Tailwind CSS** - Utility-first styling
 - **Framer Motion** - Smooth animations
 - **Google Maps API** - Location services and mapping
@@ -28,9 +27,8 @@ BoothNow is a mobile-first platform for on-demand, soundproof micro-workspaces e
 - **Clerk** - Authentication and user management
 - **Supabase** - Database and storage
 - **Stripe** - Payment processing
-- **PostHog** - Analytics and user insights
 
-## 📱 Mobile App Features
+## 📱 Web App Features
 
 - **Full-Screen Map** - Voi-style interface with booth locations
 - **QR Code Scanner** - Real-time camera integration for booth unlocking
@@ -82,10 +80,6 @@ BoothNow is a mobile-first platform for on-demand, soundproof micro-workspaces e
    # Web Dashboard
    cd ../web
    npm install
-   
-   # Mobile App
-   cd ../frontend
-   npm install
    ```
 
 3. **Environment Setup**
@@ -104,10 +98,6 @@ BoothNow is a mobile-first platform for on-demand, soundproof micro-workspaces e
    # Web Dashboard (Port 3000)
    cd web
    npm run dev
-   
-   # Mobile App
-   cd frontend
-   npm start
    ```
 
 ## 📁 Project Structure
@@ -143,7 +133,7 @@ BoothNow/
 
 ## 📊 Analytics
 
-PostHog integration provides:
+Analytics capabilities:
 - User behavior tracking
 - Session analytics
 - Conversion funnels

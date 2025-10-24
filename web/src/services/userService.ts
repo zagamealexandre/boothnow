@@ -41,11 +41,9 @@ class UserService {
   async getUserProfile(clerkUserId: string): Promise<UserProfile | null> {
     try {
       if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
-        console.log('Supabase not configured, returning mock user profile')
         return this.getMockUserProfile(clerkUserId)
       }
 
-      console.log('Fetching user profile for Clerk ID:', clerkUserId)
 
       const { data, error } = await supabase
         .from('users')
@@ -60,7 +58,6 @@ class UserService {
       }
 
       if (!data) {
-        console.log('No user profile found, returning mock data')
         return this.getMockUserProfile(clerkUserId)
       }
 
@@ -75,11 +72,9 @@ class UserService {
   async initializeUserProfile(clerkUserId: string, clerkUserData?: any): Promise<UserProfile | null> {
     try {
       if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
-        console.log('Supabase not configured, returning Clerk user data as profile')
         return this.getClerkUserProfile(clerkUserId, clerkUserData)
       }
 
-      console.log('Initializing user profile for Clerk ID:', clerkUserId)
 
       // Check if user already exists
       const { data: existingUser } = await supabase
@@ -89,7 +84,6 @@ class UserService {
         .maybeSingle()
 
       if (existingUser) {
-        console.log('User already exists, fetching profile')
         return await this.getUserProfile(clerkUserId)
       }
 
@@ -113,11 +107,9 @@ class UserService {
 
       if (error) {
         console.error('Error creating user profile:', error)
-        console.log('Falling back to Clerk user data')
         return this.getClerkUserProfile(clerkUserId, clerkUserData)
       }
 
-      console.log('User profile created successfully:', data.id)
       return data
     } catch (error) {
       console.error('Error in initializeUserProfile:', error)
@@ -144,11 +136,9 @@ class UserService {
   async getUserStats(clerkUserId: string): Promise<UserStats> {
     try {
       if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
-        console.log('Supabase not configured, returning mock user stats')
         return this.getMockUserStats()
       }
 
-      console.log('Fetching user stats for Clerk ID:', clerkUserId)
 
       // Get total sessions - try clerk_user_id first, fallback to user_id
       let { data: sessions, error: sessionsError } = await supabase
@@ -159,7 +149,6 @@ class UserService {
 
       // If clerk_user_id doesn't work, try with user_id (for backward compatibility)
       if (sessionsError && sessionsError.code === '42703') {
-        console.log('clerk_user_id column not found, trying with user_id via users table')
         const { data: user } = await supabase
           .from('users')
           .select('id')
@@ -180,7 +169,6 @@ class UserService {
 
       if (sessionsError) {
         console.error('Error fetching user sessions:', sessionsError)
-        console.log('Falling back to mock stats due to session error')
         return this.getMockUserStats()
       }
 
@@ -201,7 +189,6 @@ class UserService {
         month: 'long' 
       }) : 'October 2024'
 
-      console.log('User stats calculated:', { totalSessions, totalTimeMinutes, totalSpent, memberSince })
 
       return {
         total_sessions: totalSessions,
@@ -219,11 +206,9 @@ class UserService {
   async getUserSessionHistory(clerkUserId: string, limit: number = 5): Promise<SessionHistory[]> {
     try {
       if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
-        console.log('Supabase not configured, returning mock session history')
         return this.getMockSessionHistory()
       }
 
-      console.log('Fetching session history for Clerk ID:', clerkUserId)
 
       // Try clerk_user_id first, fallback to user_id if needed
       let { data: sessions, error } = await supabase
@@ -241,7 +226,6 @@ class UserService {
 
       // If clerk_user_id doesn't work, try with user_id (for backward compatibility)
       if (error && error.code === '42703') {
-        console.log('clerk_user_id column not found in sessions, trying with user_id via users table')
         const { data: user } = await supabase
           .from('users')
           .select('id')
@@ -269,12 +253,10 @@ class UserService {
 
       if (error) {
         console.error('Error fetching session history:', error)
-        console.log('Falling back to mock session history due to error')
         return this.getMockSessionHistory()
       }
 
       if (!sessions || sessions.length === 0) {
-        console.log('No sessions found, returning mock data')
         return this.getMockSessionHistory()
       }
 
@@ -289,7 +271,6 @@ class UserService {
         status: session.status
       }))
 
-      console.log('Session history fetched:', sessionHistory.length, 'sessions')
       return sessionHistory
     } catch (error) {
       console.error('Error in getUserSessionHistory:', error)
@@ -301,7 +282,6 @@ class UserService {
   async createOrUpdateUserProfile(clerkUser: any): Promise<UserProfile | null> {
     try {
       if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
-        console.log('Supabase not configured, cannot create/update user profile')
         return null
       }
 

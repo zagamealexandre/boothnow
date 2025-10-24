@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { posthog } from '../services';
 import { AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
@@ -13,16 +12,7 @@ router.post('/track', async (req: AuthenticatedRequest, res) => {
       return res.status(400).json({ error: 'Event name is required' });
     }
 
-    // Track event with PostHog
-    posthog.capture({
-      distinctId: req.userId!,
-      event,
-      properties: {
-        ...properties,
-        timestamp: new Date().toISOString(),
-        user_id: req.userId
-      }
-    });
+    // Event tracking removed (PostHog removed)
 
     res.json({ message: 'Event tracked successfully' });
 
@@ -37,15 +27,7 @@ router.post('/identify', async (req: AuthenticatedRequest, res) => {
   try {
     const { properties = {} } = req.body;
 
-    // Identify user with PostHog
-    posthog.identify({
-      distinctId: req.userId!,
-      properties: {
-        ...properties,
-        user_id: req.userId,
-        identified_at: new Date().toISOString()
-      }
-    });
+    // User identification removed (PostHog removed)
 
     res.json({ message: 'User identified successfully' });
 
@@ -58,7 +40,7 @@ router.post('/identify', async (req: AuthenticatedRequest, res) => {
 // GET /api/analytics/insights - Get user analytics insights
 router.get('/insights', async (req: AuthenticatedRequest, res) => {
   try {
-    // This would typically fetch from PostHog API or your analytics database
+    // Analytics insights removed (PostHog removed)
     // For now, return a placeholder response
     res.json({
       insights: {

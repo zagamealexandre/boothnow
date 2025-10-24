@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase, posthog } from '../services';
+import { supabase } from '../services';
 import { AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
@@ -72,17 +72,6 @@ router.post('/start', async (req: AuthenticatedRequest, res) => {
       return res.status(500).json({ error: 'Failed to create session' });
     }
 
-    // Track analytics
-    posthog.capture({
-      distinctId: req.userId!,
-      event: 'session_started',
-      properties: {
-        session_id: session.id,
-        booth_id,
-        reservation_id,
-        partner: session.booths?.partner
-      }
-    });
 
     res.json({ 
       session,
@@ -137,18 +126,6 @@ router.post('/:id/end', async (req: AuthenticatedRequest, res) => {
       .update({ availability: true })
       .eq('id', session.booth_id);
 
-    // Track analytics
-    posthog.capture({
-      distinctId: req.userId!,
-      event: 'session_ended',
-      properties: {
-        session_id: id,
-        booth_id: session.booth_id,
-        total_minutes,
-        total_cost,
-        duration_minutes: session.total_minutes
-      }
-    });
 
     res.json({ 
       session,

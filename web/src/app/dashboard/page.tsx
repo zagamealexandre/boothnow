@@ -10,6 +10,21 @@ export default async function DashboardPage() {
 
   const user = await currentUser()
 
+  // Serialize the Clerk user data to plain objects to avoid Next.js errors
+  const serializedUser = user ? {
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    emailAddresses: user.emailAddresses?.map(email => ({
+      emailAddress: email.emailAddress
+    })) || [],
+    phoneNumbers: user.phoneNumbers?.map(phone => ({
+      phoneNumber: phone.phoneNumber
+    })) || [],
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt
+  } : null
+
   const Dashboard = dynamic(() => import('../../components/Dashboard'), { ssr: false })
-  return <Dashboard firstName={user?.firstName ?? null} />
+  return <Dashboard clerkUser={serializedUser} />
 }

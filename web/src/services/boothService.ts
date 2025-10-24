@@ -13,6 +13,7 @@ export interface Booth {
   lat: number
   lng: number
   address: string
+  name?: string
   availability?: boolean
   status: 'available' | 'busy' | 'prebooked' | 'maintenance'
   next_available_at?: string

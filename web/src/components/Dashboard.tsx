@@ -6,6 +6,7 @@ import { MapPin, Clock, Wifi, Shield, LocateFixed, Search, X, Settings, Bell, Us
 import Link from 'next/link'
 import Rewards from './Rewards'
 import { boothService, Booth } from '../services/boothService'
+import { userService, UserProfile, UserStats, SessionHistory } from '../services/userService'
 import { MapSection } from './minimal/MapSection'
 import MobileMapSection from './MobileMapSection'
 
@@ -628,7 +629,21 @@ const mapStyles = [
   },
 ]
 
-export default function Dashboard() {
+interface ClerkUser {
+  id: string
+  firstName?: string
+  lastName?: string
+  emailAddresses?: Array<{ emailAddress: string }>
+  phoneNumbers?: Array<{ phoneNumber: string }>
+  createdAt?: number
+  updatedAt?: number
+}
+
+interface DashboardProps {
+  clerkUser?: ClerkUser | null
+}
+
+export default function Dashboard({ clerkUser }: DashboardProps) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
   
   if (!apiKey) {
@@ -642,10 +657,45 @@ export default function Dashboard() {
   const [showSearchField, setShowSearchField] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const [userStats, setUserStats] = useState<UserStats | null>(null)
+  const [sessionHistory, setSessionHistory] = useState<SessionHistory[]>([])
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const { userId } = useAuth()
+
+  // Load user data when component mounts
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (!userId) return
+
+      try {
+        setIsLoadingProfile(true)
+        
+        // First try to initialize user profile (creates if doesn't exist)
+        // Pass the Clerk user data to get real name and email
+        const profile = await userService.initializeUserProfile(userId, clerkUser)
+        
+        // Then load stats and session history in parallel
+        const [stats, history] = await Promise.all([
+          userService.getUserStats(userId),
+          userService.getUserSessionHistory(userId, 5)
+        ])
+
+        setUserProfile(profile)
+        setUserStats(stats)
+        setSessionHistory(history)
+      } catch (error) {
+        console.error('Error loading user data:', error)
+      } finally {
+        setIsLoadingProfile(false)
+      }
+    }
+
+    loadUserData()
+  }, [userId, clerkUser])
 
   // Handle recenter button
   const handleRecenter = () => {
@@ -1257,106 +1307,116 @@ export default function Dashboard() {
         {activeTab === 'profile' && (
           <div className="h-full bg-white p-6 pb-24 overflow-y-auto">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Profile</h2>
-            <div className="space-y-6">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">Account Info</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Name:</span>
-                    <span className="text-gray-900">Alexandre Zagame</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Email:</span>
-                    <span className="text-gray-900">alex@example.com</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Member since:</span>
-                    <span className="text-gray-900">October 2024</span>
+            {isLoadingProfile ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#2E6A9C] border-t-transparent"></div>
+                <span className="ml-3 text-gray-600">Loading profile...</span>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-900 mb-3">Account Info</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Name:</span>
+                      <span className="text-gray-900">
+                        {userProfile ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || 'Not provided' : 'Loading...'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Email:</span>
+                      <span className="text-gray-900">{userProfile?.email || 'Not provided'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Member since:</span>
+                      <span className="text-gray-900">{userStats?.member_since || 'Unknown'}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">Usage Stats</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Total sessions:</span>
-                    <span className="text-gray-900">12</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Total time:</span>
-                    <span className="text-gray-900">9h 15m</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Total spent:</span>
-                    <span className="text-gray-900">€270.00</span>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-900 mb-3">Usage Stats</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Total sessions:</span>
+                      <span className="text-gray-900">{userStats?.total_sessions || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Total time:</span>
+                      <span className="text-gray-900">
+                        {userStats ? `${Math.floor(userStats.total_time_minutes / 60)}h ${userStats.total_time_minutes % 60}m` : '0h 0m'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Total spent:</span>
+                      <span className="text-gray-900">€{userStats?.total_spent?.toFixed(2) || '0.00'}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">Recent Sessions</h3>
-                <div className="space-y-4">
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-semibold text-gray-900">7-Eleven Stockholm Central</h4>
-                        <p className="text-sm text-gray-600">Storgatan 1, Stockholm</p>
-                        <p className="text-xs text-gray-500 mt-1">Yesterday, 2:30 PM - 3:15 PM</p>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-900 mb-3">Recent Sessions</h3>
+                  <div className="space-y-4">
+                    {sessionHistory.length > 0 ? (
+                      sessionHistory.map((session) => (
+                        <div key={session.id} className="bg-white rounded-lg p-4 border border-gray-200">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-semibold text-gray-900">{session.booth_name}</h4>
+                              <p className="text-sm text-gray-600">{session.booth_address}</p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {new Date(session.start_time).toLocaleDateString('en-US', { 
+                                  weekday: 'long', 
+                                  month: 'short', 
+                                  day: 'numeric',
+                                  hour: 'numeric',
+                                  minute: '2-digit'
+                                })}
+                                {session.end_time && ` - ${new Date(session.end_time).toLocaleTimeString('en-US', { 
+                                  hour: 'numeric', 
+                                  minute: '2-digit' 
+                                })}`}
+                              </p>
+                            </div>
+                            <span className="text-sm font-medium text-green-600">
+                              {session.duration_minutes ? `${session.duration_minutes} min` : 'Active'}
+                            </span>
+                          </div>
+                          <div className="mt-3 flex items-center space-x-4 text-sm text-gray-600">
+                            <span className="flex items-center">
+                              <Shield className="w-4 h-4 mr-1" />
+                              Soundproof
+                            </span>
+                            <span className="flex items-center">
+                              <Wifi className="w-4 h-4 mr-1" />
+                              WiFi
+                            </span>
+                            <span className="flex items-center">
+                              <Clock className="w-4 h-4 mr-1" />
+                              €{session.cost?.toFixed(2) || '0.00'}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>No sessions found</p>
+                        <p className="text-sm mt-1">Your session history will appear here</p>
                       </div>
-                      <span className="text-sm font-medium text-green-600">45 min</span>
-                    </div>
-                    <div className="mt-3 flex items-center space-x-4 text-sm text-gray-600">
-                      <span className="flex items-center">
-                        <Shield className="w-4 h-4 mr-1" />
-                        Soundproof
-                      </span>
-                      <span className="flex items-center">
-                        <Wifi className="w-4 h-4 mr-1" />
-                        WiFi
-                      </span>
-                      <span className="flex items-center">
-                        <Clock className="w-4 h-4 mr-1" />
-                        €22.50
-                      </span>
-                    </div>
-                  </div>
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-semibold text-gray-900">7-Eleven Gamla Stan</h4>
-                        <p className="text-sm text-gray-600">Västerlånggatan 1, Stockholm</p>
-                        <p className="text-xs text-gray-500 mt-1">Monday, 10:15 AM - 11:00 AM</p>
-                      </div>
-                      <span className="text-sm font-medium text-green-600">45 min</span>
-                    </div>
-                    <div className="mt-3 flex items-center space-x-4 text-sm text-gray-600">
-                      <span className="flex items-center">
-                        <Shield className="w-4 h-4 mr-1" />
-                        Soundproof
-                      </span>
-                      <span className="flex items-center">
-                        <Wifi className="w-4 h-4 mr-1" />
-                        WiFi
-                      </span>
-                      <span className="flex items-center">
-                        <Clock className="w-4 h-4 mr-1" />
-                        €22.50
-                      </span>
-                    </div>
+                    )}
                   </div>
                 </div>
+                <div className="space-y-3">
+                  <button className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg">
+                    Payment Methods
+                  </button>
+                  <button className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg">
+                    Notifications
+                  </button>
+                  <button className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg">
+                    Help & Support
+                  </button>
+                </div>
               </div>
-              <div className="space-y-3">
-                <button className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg">
-                  Payment Methods
-                </button>
-                <button className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg">
-                  Notifications
-                </button>
-                <button className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg">
-                  Help & Support
-                </button>
-              </div>
-            </div>
+            )}
           </div>
         )}
 

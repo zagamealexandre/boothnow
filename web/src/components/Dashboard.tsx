@@ -1414,6 +1414,18 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
                   <button className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg">
                     Help & Support
                   </button>
+                  <SignOutButton>
+                    <button 
+                      className="w-full bg-red-50 text-red-600 text-sm font-medium px-4 py-3 rounded-lg border border-red-200 hover:bg-red-100 transition-colors"
+                      onClick={() => {
+                        // Redirect to landing page after logout
+                        window.location.href = '/';
+                      }}
+                    >
+                      <X className="w-4 h-4 inline mr-2" />
+                      Log Out
+                    </button>
+                  </SignOutButton>
                 </div>
               </div>
             )}

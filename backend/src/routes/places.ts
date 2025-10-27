@@ -38,7 +38,7 @@ router.get('/7eleven', async (req, res) => {
     }
 
     // Merge Google Places data with BoothNow booth data
-    const enrichedPlaces = places.map(place => {
+    const enrichedPlaces = places.map((place: any) => {
       const booth = booths?.find(b => b.place_id === place.place_id);
       
       return {
@@ -57,7 +57,7 @@ router.get('/7eleven', async (req, res) => {
       };
     });
 
-    res.json({
+    return res.json({
       places: enrichedPlaces,
       total: enrichedPlaces.length,
       boothnow_count: booths?.length || 0
@@ -65,7 +65,7 @@ router.get('/7eleven', async (req, res) => {
 
   } catch (error) {
     console.error('Places API error:', error);
-    res.status(500).json({ error: 'Failed to fetch places data' });
+    return res.status(500).json({ error: 'Failed to fetch places data' });
   }
 });
 
@@ -91,7 +91,7 @@ router.get('/details/:place_id', async (req, res) => {
       .eq('place_id', place_id)
       .single();
 
-    res.json({
+    return res.json({
       ...place,
       boothnow_enabled: !!booth,
       booth: booth || null
@@ -99,7 +99,7 @@ router.get('/details/:place_id', async (req, res) => {
 
   } catch (error) {
     console.error('Place details error:', error);
-    res.status(500).json({ error: 'Failed to fetch place details' });
+    return res.status(500).json({ error: 'Failed to fetch place details' });
   }
 });
 

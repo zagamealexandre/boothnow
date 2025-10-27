@@ -8,6 +8,13 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 
+// Import routes
+import { paymentRoutes } from './routes/payments';
+import { boothRoutes } from './routes/booths';
+import { userRoutes } from './routes/users';
+import { sessionRoutes } from './routes/sessions';
+import { analyticsRoutes } from './routes/analytics';
+
 // Load environment variables
 dotenv.config();
 
@@ -57,6 +64,13 @@ app.get('/health', (req, res) => {
     version: process.env.npm_package_version || '1.0.0'
   });
 });
+
+// API routes
+app.use('/api/payments', paymentRoutes);
+app.use('/api/booths', boothRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // API routes
 app.get('/api/places/7eleven', (req, res) => {

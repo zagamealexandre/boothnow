@@ -19,7 +19,8 @@ export const authMiddleware = async (
     }
 
     const payload = await verifyToken(token, {
-      secretKey: process.env.CLERK_SECRET_KEY!
+      secretKey: process.env.CLERK_SECRET_KEY!,
+      issuer: 'https://clerk.boothnow.com'
     });
 
     if (!payload || !payload.sub) {
@@ -28,7 +29,31 @@ export const authMiddleware = async (
 
     req.userId = payload.sub;
     req.user = payload;
-    next();
+    
+    // Debug: Log the payload structure to understand the format
+    console.log('🔍 Clerk payload structure:', JSON.stringify(payload, null, 2));
+    
+    // Extract email from various possible locations in the payload
+    let userEmail = null;
+    if (payload.email) {
+      userEmail = payload.email;
+    } else if (payload.email_address) {
+      userEmail = payload.email_address;
+    } else if (payload.emailAddresses && payload.emailAddresses.length > 0) {
+      userEmail = payload.emailAddresses[0].emailAddress || payload.emailAddresses[0];
+    } else if (payload.primary_email_address) {
+      userEmail = payload.primary_email_address;
+    }
+    
+    // Add email to the user object for easy access
+    if (userEmail) {
+      req.user.email = userEmail;
+      console.log('✅ Extracted email from payload:', userEmail);
+    } else {
+      console.log('❌ No email found in payload structure');
+    }
+    
+    return next();
   } catch (error) {
     console.error('Auth middleware error:', error);
     return res.status(401).json({ error: 'Invalid authentication token' });
@@ -41,7 +66,7 @@ export const adminAuthMiddleware = async (
   next: NextFunction
 ) => {
   try {
-    await authMiddleware(req, res, () => {
+    return await authMiddleware(req, res, () => {
       // Check if user has admin role
       const userRoles = req.user?.metadata?.roles || [];
       
@@ -49,7 +74,7 @@ export const adminAuthMiddleware = async (
         return res.status(403).json({ error: 'Admin access required' });
       }
       
-      next();
+      return next();
     });
   } catch (error) {
     console.error('Admin auth middleware error:', error);

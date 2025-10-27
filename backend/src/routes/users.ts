@@ -40,11 +40,11 @@ router.get('/profile', async (req: AuthenticatedRequest, res) => {
       return res.json({ user: newUser });
     }
 
-    res.json({ user });
+    return res.json({ user });
 
   } catch (error) {
     console.error('User profile error:', error);
-    res.status(500).json({ error: 'Failed to fetch user profile' });
+    return res.status(500).json({ error: 'Failed to fetch user profile' });
   }
 });
 
@@ -72,11 +72,11 @@ router.put('/profile', async (req: AuthenticatedRequest, res) => {
     }
 
 
-    res.json({ user });
+    return res.json({ user });
 
   } catch (error) {
     console.error('User update error:', error);
-    res.status(500).json({ error: 'Failed to update user profile' });
+    return res.status(500).json({ error: 'Failed to update user profile' });
   }
 });
 
@@ -106,11 +106,11 @@ router.get('/sessions', async (req: AuthenticatedRequest, res) => {
       return res.status(500).json({ error: 'Failed to fetch session history' });
     }
 
-    res.json({ sessions: sessions || [] });
+    return res.json({ sessions: sessions || [] });
 
   } catch (error) {
     console.error('Sessions history error:', error);
-    res.status(500).json({ error: 'Failed to fetch session history' });
+    return res.status(500).json({ error: 'Failed to fetch session history' });
   }
 });
 
@@ -149,7 +149,7 @@ router.get('/stats', async (req: AuthenticatedRequest, res) => {
     const favoritePartner = Object.keys(partnerCounts || {}).reduce((a, b) => 
       (partnerCounts?.[a] || 0) > (partnerCounts?.[b] || 0) ? a : b, '');
 
-    res.json({
+    return res.json({
       total_sessions: totalSessions || 0,
       total_minutes: totalMinutes,
       favorite_partner: favoritePartner,
@@ -158,7 +158,7 @@ router.get('/stats', async (req: AuthenticatedRequest, res) => {
 
   } catch (error) {
     console.error('User stats error:', error);
-    res.status(500).json({ error: 'Failed to fetch user statistics' });
+    return res.status(500).json({ error: 'Failed to fetch user statistics' });
   }
 });
 

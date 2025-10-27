@@ -28,11 +28,11 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
       return res.status(500).json({ error: 'Failed to fetch sessions' });
     }
 
-    res.json({ sessions: sessions || [] });
+    return res.json({ sessions: sessions || [] });
 
   } catch (error) {
     console.error('Sessions fetch error:', error);
-    res.status(500).json({ error: 'Failed to fetch sessions' });
+    return res.status(500).json({ error: 'Failed to fetch sessions' });
   }
 });
 
@@ -73,14 +73,14 @@ router.post('/start', async (req: AuthenticatedRequest, res) => {
     }
 
 
-    res.json({ 
+    return res.json({ 
       session,
       message: 'Session started successfully' 
     });
 
   } catch (error) {
     console.error('Session start error:', error);
-    res.status(500).json({ error: 'Failed to start session' });
+    return res.status(500).json({ error: 'Failed to start session' });
   }
 });
 
@@ -127,14 +127,14 @@ router.post('/:id/end', async (req: AuthenticatedRequest, res) => {
       .eq('id', session.booth_id);
 
 
-    res.json({ 
+    return res.json({ 
       session,
       message: 'Session ended successfully' 
     });
 
   } catch (error) {
     console.error('Session end error:', error);
-    res.status(500).json({ error: 'Failed to end session' });
+    return res.status(500).json({ error: 'Failed to end session' });
   }
 });
 
@@ -162,7 +162,7 @@ router.get('/:id/timer', async (req: AuthenticatedRequest, res) => {
     const now = new Date();
     const elapsedMinutes = Math.floor((now.getTime() - startTime.getTime()) / (1000 * 60));
 
-    res.json({
+    return res.json({
       session_id: id,
       start_time: session.start_time,
       elapsed_minutes: elapsedMinutes,
@@ -171,7 +171,7 @@ router.get('/:id/timer', async (req: AuthenticatedRequest, res) => {
 
   } catch (error) {
     console.error('Session timer error:', error);
-    res.status(500).json({ error: 'Failed to get session timer' });
+    return res.status(500).json({ error: 'Failed to get session timer' });
   }
 });
 

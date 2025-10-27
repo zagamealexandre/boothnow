@@ -14,11 +14,11 @@ router.post('/track', async (req: AuthenticatedRequest, res) => {
 
     // Event tracking removed (PostHog removed)
 
-    res.json({ message: 'Event tracked successfully' });
+    return res.json({ message: 'Event tracked successfully' });
 
   } catch (error) {
     console.error('Analytics tracking error:', error);
-    res.status(500).json({ error: 'Failed to track event' });
+    return res.status(500).json({ error: 'Failed to track event' });
   }
 });
 
@@ -29,11 +29,11 @@ router.post('/identify', async (req: AuthenticatedRequest, res) => {
 
     // User identification removed (PostHog removed)
 
-    res.json({ message: 'User identified successfully' });
+    return res.json({ message: 'User identified successfully' });
 
   } catch (error) {
     console.error('Analytics identify error:', error);
-    res.status(500).json({ error: 'Failed to identify user' });
+    return res.status(500).json({ error: 'Failed to identify user' });
   }
 });
 
@@ -42,7 +42,7 @@ router.get('/insights', async (req: AuthenticatedRequest, res) => {
   try {
     // Analytics insights removed (PostHog removed)
     // For now, return a placeholder response
-    res.json({
+    return res.json({
       insights: {
         total_sessions: 0,
         average_session_duration: 0,
@@ -57,7 +57,7 @@ router.get('/insights', async (req: AuthenticatedRequest, res) => {
 
   } catch (error) {
     console.error('Analytics insights error:', error);
-    res.status(500).json({ error: 'Failed to fetch analytics insights' });
+    return res.status(500).json({ error: 'Failed to fetch analytics insights' });
   }
 });
 

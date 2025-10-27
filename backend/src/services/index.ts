@@ -1,6 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
-import Stripe from 'stripe';
+import { Creem } from 'creem';
 import axios from 'axios';
+import dotenv from 'dotenv';
+
+// Load environment variables first
+dotenv.config();
 
 // Supabase client
 export const supabase = createClient(
@@ -8,9 +12,9 @@ export const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Stripe client
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16',
+// Creem client - using test mode
+export const creem = new Creem({ 
+  serverIdx: 1 // 0: production, 1: test-mode
 });
 
 
@@ -33,11 +37,14 @@ export const initializeServices = () => {
     }
   });
 
-  // Test Stripe connection
-  stripe.balance.retrieve().then(() => {
-    console.log('✅ Stripe connected');
+  // Test Creem connection
+  creem.retrieveProduct({
+    productId: 'test',
+    xApiKey: process.env.CREEM_API_TEST || 'test-key'
+  }).then(() => {
+    console.log('✅ Creem connected');
   }).catch((error) => {
-    console.error('❌ Stripe connection failed:', error.message);
+    console.error('❌ Creem connection failed:', error.message);
   });
 
 

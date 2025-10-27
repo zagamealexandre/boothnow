@@ -28,11 +28,11 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
     }
 
 
-    res.json({ booths: booths || [] });
+    return res.json({ booths: booths || [] });
 
   } catch (error) {
     console.error('Booths fetch error:', error);
-    res.status(500).json({ error: 'Failed to fetch booths' });
+    return res.status(500).json({ error: 'Failed to fetch booths' });
   }
 });
 
@@ -57,11 +57,11 @@ router.get('/:id', async (req: AuthenticatedRequest, res) => {
     }
 
 
-    res.json({ booth });
+    return res.json({ booth });
 
   } catch (error) {
     console.error('Booth fetch error:', error);
-    res.status(500).json({ error: 'Failed to fetch booth' });
+    return res.status(500).json({ error: 'Failed to fetch booth' });
   }
 });
 
@@ -111,14 +111,14 @@ router.post('/:id/reserve', async (req: AuthenticatedRequest, res) => {
       .eq('id', id);
 
 
-    res.json({ 
+    return res.json({ 
       reservation,
       message: 'Booth reserved successfully' 
     });
 
   } catch (error) {
     console.error('Booth reservation error:', error);
-    res.status(500).json({ error: 'Failed to reserve booth' });
+    return res.status(500).json({ error: 'Failed to reserve booth' });
   }
 });
 

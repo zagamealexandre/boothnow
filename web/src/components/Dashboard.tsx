@@ -2,13 +2,18 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { SignOutButton, useAuth } from '@clerk/nextjs'
-import { MapPin, Clock, Wifi, Shield, LocateFixed, Search, X, Settings, Bell, Users, QrCode, User, Ticket, LifeBuoy, Gift, Star, ShoppingBag, Coffee } from 'lucide-react'
+import { MapPin, Clock, Wifi, Shield, LocateFixed, Search, X, Settings, Bell, Users, QrCode, User, Ticket, LifeBuoy, Gift, Star, ShoppingBag, Coffee, CreditCard } from 'lucide-react'
 import Link from 'next/link'
 import Rewards from './Rewards'
 import { boothService, Booth } from '../services/boothService'
 import { userService, UserProfile, UserStats, SessionHistory } from '../services/userService'
 import { MapSection } from './minimal/MapSection'
 import MobileMapSection from './MobileMapSection'
+import ProductCatalog from './ProductCatalog'
+import CheckoutModal from './CheckoutModal'
+import SubscriptionManager from './SubscriptionManager'
+import PaymentSetup from './PaymentSetup'
+import { CreemProduct, CreemCheckout } from '../services/creemService'
 
 // Deprecated function removed - using MapSection instead
 
@@ -79,6 +84,8 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
   const [cameraActive, setCameraActive] = useState(false)
   const [scannedCode, setScannedCode] = useState<string | null>(null)
   const [showSearchField, setShowSearchField] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<CreemProduct | null>(null)
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
@@ -100,7 +107,9 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
         
         // First try to initialize user profile (creates if doesn't exist)
         // Pass the Clerk user data to get real name and email
+        console.log('🔍 Dashboard - initializing user profile for:', userId);
         const profile = await userService.initializeUserProfile(userId, clerkUser)
+        console.log('🔍 Dashboard - user profile initialized:', profile ? 'Success' : 'Failed');
         
         // Then load stats and session history in parallel
         const [stats, history] = await Promise.all([
@@ -854,10 +863,57 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
                         <p className="text-sm mt-1">Your session history will appear here</p>
                       </div>
                     )}
+                    </div>
+                    </div>
+
+              {/* Payments & Subscriptions Section */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-4">Payments & Subscriptions</h3>
+                
+                {/* Payment Setup for Pay-Per-Use */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Payment Method</h4>
+                  <PaymentSetup 
+                    clerkUser={clerkUser}
+                    userProfile={userProfile}
+                    onSetupComplete={() => {
+                      console.log('Payment method setup completed');
+                    }}
+                  />
+                </div>
+
+                {/* Product Catalog */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Available Plans</h4>
+                  <ProductCatalog 
+                    onProductSelect={(product) => {
+                      setSelectedProduct(product);
+                      setShowCheckoutModal(true);
+                    }}
+                    showBoothProducts={true}
+                  />
+                  </div>
+
+                {/* Subscription Management */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">My Subscriptions</h4>
+                  <SubscriptionManager 
+                    customerEmail={userProfile?.email}
+                    onSubscriptionUpdate={(subscription) => {
+                      console.log('Subscription updated:', subscription);
+                    }}
+                  />
                 </div>
               </div>
+
               <div className="space-y-3">
-                <button className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg">
+                <button 
+                  className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg hover:bg-gray-200 transition-colors"
+                  onClick={() => {
+                    // Redirect to Creem payment methods or checkout
+                    window.open('https://creem.io', '_blank');
+                  }}
+                >
                   Payment Methods
                 </button>
                 <button className="w-full bg-gray-100 text-gray-700 text-sm font-medium px-4 py-3 rounded-lg">
@@ -890,6 +946,7 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
             <Rewards />
           </div>
         )}
+
       </div>
 
       {/* Desktop Map Card */}
@@ -947,6 +1004,26 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
           <span className={`text-xs mt-1 ${activeTab === 'profile' ? 'font-medium' : ''}`}>Profile</span>
         </button>
       </nav>
+
+      {/* Checkout Modal */}
+      <CheckoutModal
+        product={selectedProduct}
+        isOpen={showCheckoutModal}
+        onClose={() => {
+          setShowCheckoutModal(false);
+          setSelectedProduct(null);
+        }}
+        onSuccess={(checkout) => {
+          console.log('Checkout created:', checkout);
+          // Handle successful checkout creation
+        }}
+        customerEmail={userProfile?.email}
+        customerName={`${userProfile?.first_name || ''} ${userProfile?.last_name || ''}`.trim()}
+        metadata={{
+          user_id: userId,
+          booth_session: true
+        }}
+      />
     </div>
   )
 }

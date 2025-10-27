@@ -42,7 +42,6 @@ class BoothService {
 
     // Check if Supabase is properly configured
     if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
-      console.log('Supabase not configured, using mock realtime updates')
       // Set up mock realtime updates for development
       const mockInterval = setInterval(() => {
         const mockBooths = this.getMockBooths()
@@ -69,7 +68,6 @@ class BoothService {
             table: 'booths' 
           }, 
           (payload) => {
-            console.log('Booth status changed:', payload)
             this.fetchBooths().then(booths => {
               this.subscribers.forEach(cb => cb(booths))
             })
@@ -89,10 +87,8 @@ class BoothService {
 
   // Fetch all booths with current status
   async fetchBooths(statusFilter?: string): Promise<Booth[]> {
-    console.log('fetchBooths called with statusFilter:', statusFilter)
     try {
       // Use Supabase data first - we have 10 real 7-Eleven locations in the database
-      console.log('🗄️ Fetching booths from Supabase database...')
       
       if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
         console.error('❌ SUPABASE NOT CONFIGURED!')
@@ -117,7 +113,6 @@ class BoothService {
       }
 
       if (!booths || booths.length === 0) {
-        console.log('❌ No booths found in Supabase database')
         throw new Error('No booths found in database')
       }
 
@@ -143,8 +138,6 @@ class BoothService {
         }
       })
 
-      console.log(`✅ Fetched ${boothsWithTimeRemaining.length} booths from Supabase`)
-      console.log('📍 First booth:', boothsWithTimeRemaining[0])
       return boothsWithTimeRemaining
     } catch (error) {
       console.error('❌ Error in fetchBooths:', error)
@@ -174,7 +167,6 @@ class BoothService {
         return { success: false, error: 'Failed to update booth status' }
       }
 
-      console.log('Booth booked successfully:', boothId)
       return { success: true, reservationId: 'reservation-' + Date.now() }
     } catch (error) {
       console.error('Error booking booth:', error)
@@ -201,7 +193,6 @@ class BoothService {
         return { success: false, error: 'Failed to update booth status' }
       }
 
-      console.log('Booth pre-booked successfully:', boothId)
       return { success: true, reservationId: 'prebook-' + Date.now() }
     } catch (error) {
       console.error('Error pre-booking booth:', error)
@@ -213,7 +204,6 @@ class BoothService {
   async joinWaitlist(boothId: string): Promise<{ success: boolean; error?: string }> {
     try {
       // For now, just log the waitlist join - could be implemented with a separate waitlist table
-      console.log('User joined waitlist for booth:', boothId)
       return { success: true }
     } catch (error) {
       console.error('Error joining waitlist:', error)
@@ -248,7 +238,6 @@ class BoothService {
       // Notify subscribers with mock update
       this.subscribers.forEach(callback => {
         // This would normally fetch fresh data from the server
-        console.log('Demo: Simulating booth status update')
       })
     }, 30000) // Update every 30 seconds
 
@@ -257,8 +246,3 @@ class BoothService {
 }
 
 export const boothService = new BoothService()
-
-// Test the service immediately
-console.log('BoothService initialized')
-console.log('Environment check - Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
-console.log('Environment check - Supabase Key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)

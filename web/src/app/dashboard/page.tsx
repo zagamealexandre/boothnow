@@ -15,9 +15,13 @@ export default async function DashboardPage() {
     id: user.id,
     firstName: user.firstName,
     lastName: user.lastName,
+    email: user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress,
     emailAddresses: user.emailAddresses?.map(email => ({
       emailAddress: email.emailAddress
     })) || [],
+    primaryEmailAddress: user.primaryEmailAddress ? {
+      emailAddress: user.primaryEmailAddress.emailAddress
+    } : null,
     phoneNumbers: user.phoneNumbers?.map(phone => ({
       phoneNumber: phone.phoneNumber
     })) || [],

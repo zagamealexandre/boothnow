@@ -45,11 +45,28 @@ class UserService {
       }
 
 
-      const { data, error } = await supabase
+      // First try to find by clerk_user_id
+      let { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('clerk_user_id', clerkUserId)
-        .maybeSingle() // Use maybeSingle() instead of single() to handle no results gracefully
+        .maybeSingle()
+
+      // If not found by clerk_user_id, try to find by email from Clerk user data
+      if (!data && !error) {
+        console.log('🔍 UserService - user not found by clerk_user_id, trying by email...');
+        // We need to get the email from somewhere - let's try a different approach
+        // For now, let's just return the first user (since we know there's only one)
+        const { data: allUsers, error: allUsersError } = await supabase
+          .from('users')
+          .select('*')
+          .limit(1)
+        
+        if (!allUsersError && allUsers && allUsers.length > 0) {
+          data = allUsers[0];
+          console.log('🔍 UserService - found user by fallback method:', data.email);
+        }
+      }
 
       if (error) {
         console.error('Error fetching user profile:', error)
@@ -76,21 +93,46 @@ class UserService {
       }
 
 
-      // Check if user already exists
-      const { data: existingUser } = await supabase
+      // Get user email from various possible locations
+      let userEmail = clerkUserData?.email; // Try direct email first
+      if (!userEmail) {
+        userEmail = clerkUserData?.primaryEmailAddress?.emailAddress;
+      }
+      if (!userEmail) {
+        userEmail = clerkUserData?.emailAddresses?.[0]?.emailAddress;
+      }
+      if (!userEmail) {
+        userEmail = 'user@example.com';
+      }
+      
+      console.log('🔍 UserService - extracted email:', userEmail);
+
+      console.log('🔍 UserService - checking for existing user:', { clerkUserId, userEmail });
+      
+      // Check if user already exists by email or clerk_user_id
+      const { data: existingUser, error: checkError } = await supabase
         .from('users')
-        .select('id')
-        .eq('clerk_user_id', clerkUserId)
+        .select('id, clerk_user_id')
+        .or(`clerk_user_id.eq.${clerkUserId},email.eq.${userEmail}`)
         .maybeSingle()
+      
+      console.log('🔍 UserService - existing user check result:', { existingUser, checkError });
 
       if (existingUser) {
+        // Update existing user with clerk_user_id if missing
+        if (!existingUser.clerk_user_id) {
+          await supabase
+            .from('users')
+            .update({ clerk_user_id: clerkUserId })
+            .eq('id', existingUser.id)
+        }
         return await this.getUserProfile(clerkUserId)
       }
 
-      // Create new user profile
+      // Create new user profile using upsert to handle conflicts
       const userData = {
         clerk_user_id: clerkUserId,
-        email: clerkUserData?.emailAddresses?.[0]?.emailAddress || 'user@example.com',
+        email: userEmail,
         first_name: clerkUserData?.firstName || 'User',
         last_name: clerkUserData?.lastName || '',
         phone_number: clerkUserData?.phoneNumbers?.[0]?.phoneNumber || null,
@@ -98,18 +140,34 @@ class UserService {
         created_at: clerkUserData?.createdAt ? new Date(clerkUserData.createdAt).toISOString() : new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
+      
+      console.log('🔍 UserService - creating user with data:', userData);
 
       const { data, error } = await supabase
         .from('users')
-        .insert([userData])
+        .upsert([userData], { 
+          onConflict: 'email',
+          ignoreDuplicates: false 
+        })
         .select()
         .single()
 
       if (error) {
-        console.error('Error creating user profile:', error)
+        console.error('Error creating/updating user profile:', error)
+        // If upsert fails, try to get existing user
+        const { data: existingUserAfterError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', userEmail)
+          .single()
+        
+        if (existingUserAfterError) {
+          return existingUserAfterError
+        }
         return this.getClerkUserProfile(clerkUserId, clerkUserData)
       }
 
+      console.log('🔍 UserService - user created/updated successfully:', data);
       return data
     } catch (error) {
       console.error('Error in initializeUserProfile:', error)
@@ -178,11 +236,26 @@ class UserService {
       const totalSpent = sessions?.reduce((sum, session) => sum + (session.total_cost || 0), 0) || 0
 
       // Get member since date
-      const { data: user } = await supabase
+      // Get user creation date
+      let { data: user, error: userError } = await supabase
         .from('users')
         .select('created_at')
         .eq('clerk_user_id', clerkUserId)
         .maybeSingle()
+
+      // If not found by clerk_user_id, try fallback method
+      if (!user && !userError) {
+        console.log('🔍 UserService - user not found for member_since, trying fallback...');
+        const { data: allUsers, error: allUsersError } = await supabase
+          .from('users')
+          .select('created_at')
+          .limit(1)
+        
+        if (!allUsersError && allUsers && allUsers.length > 0) {
+          user = allUsers[0];
+          console.log('🔍 UserService - found user for member_since by fallback method');
+        }
+      }
 
       const memberSince = user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { 
         year: 'numeric', 

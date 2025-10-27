@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Trophy, Star, Clock, Gift, Coffee, Croissant, Sandwich, CupSoda, Candy, Timer, Calendar } from 'lucide-react';
+import QRCode from 'qrcode';
 
 // Updated: 7-Eleven rewards - v2.0
 
@@ -233,7 +234,40 @@ export default function Rewards() {
   const [toastMessage, setToastMessage] = useState('');
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrCodeReward, setQrCodeReward] = useState<typeof mockRewards[0] | null>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [userData, setUserData] = useState(mockUserData);
+  const qrCodeRef = useRef<HTMLCanvasElement>(null);
+
+  // Clear QR code when modal closes
+  useEffect(() => {
+    if (!showQrModal) {
+      setQrCodeDataUrl('');
+      setQrCodeReward(null);
+    }
+  }, [showQrModal]);
+
+  // Generate QR code for reward
+  const generateQRCode = async (reward: typeof mockRewards[0]) => {
+    try {
+      // Create a unique reward code that includes reward ID, user ID, and timestamp
+      const rewardCode = `BOOTHNOW_REWARD_${reward.id}_${Date.now()}`;
+      
+      // Generate QR code as data URL
+      const qrDataUrl = await QRCode.toDataURL(rewardCode, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      
+      setQrCodeDataUrl(qrDataUrl);
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      setQrCodeDataUrl('');
+    }
+  };
 
   const handleClaimReward = (rewardId: number) => {
     const reward = mockRewards.find(r => r.id === rewardId);
@@ -275,13 +309,14 @@ export default function Rewards() {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  const handleUseReward = (rewardId: number) => {
+  const handleUseReward = async (rewardId: number) => {
     const rewardToUse = userData.myRewards.find(r => r.id === rewardId);
     if (rewardToUse) {
       // Find the full reward details from mockRewards
       const fullReward = mockRewards.find(r => r.id === rewardId);
       if (fullReward) {
         setQrCodeReward(fullReward);
+        await generateQRCode(fullReward);
         setShowQrModal(true);
       }
     }
@@ -361,9 +396,19 @@ export default function Rewards() {
             <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">Scan to Use Reward</h3>
             <p className="text-gray-700 text-center mb-6">{qrCodeReward.title}</p>
             <div className="flex justify-center mb-6">
-              {/* Placeholder for QR Code image */}
-              <div className="w-48 h-48 bg-gray-200 flex items-center justify-center rounded-lg">
-                <p className="text-gray-500 text-sm">QR Code Here</p>
+              {/* QR Code display */}
+              <div className="w-48 h-48 bg-white flex items-center justify-center rounded-lg border border-gray-200">
+                {qrCodeDataUrl ? (
+                  <img 
+                    src={qrCodeDataUrl} 
+                    alt="Reward QR Code" 
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-100 flex items-center justify-center rounded-lg">
+                    <p className="text-gray-500 text-sm">Generating QR Code...</p>
+                  </div>
+                )}
               </div>
             </div>
             <button

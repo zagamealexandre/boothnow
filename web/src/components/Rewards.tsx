@@ -1,136 +1,15 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { Trophy, Star, Clock, Gift, Coffee, Croissant, Sandwich, CupSoda, Candy, Timer, Calendar } from 'lucide-react';
+import { Trophy, Star, Clock, Gift, Calendar, Coffee } from 'lucide-react';
 import QRCode from 'qrcode';
+import { useAuth } from '@clerk/nextjs';
+import { rewardsService, Reward, UserReward, RewardUsageHistory, UserPoints } from '../services/rewardsService';
+import { mockRewards, mockUserData, iconMap } from '../data/rewardsData';
 
 // Updated: 7-Eleven rewards - v2.0
 
-// Mock data for rewards
-const mockRewards = [
-  {
-    id: 1,
-    title: "15% off any coffee",
-    description: "Valid for purchases between 7 AM and 9 AM at participating stores.",
-    partner: "7-Eleven",
-    cost: 120,
-    image: "/images/booth/closed.jpg",
-    icon: Coffee,
-    iconColor: "bg-amber-100",
-    iconBgColor: "text-amber-600",
-    badge: "7–9 AM",
-    isActive: () => {
-      const now = new Date();
-      const hour = now.getHours();
-      return hour >= 7 && hour < 9;
-    }
-  },
-  {
-    id: 2,
-    title: "Free croissant with any coffee",
-    description: "Available all day, one per transaction.",
-    partner: "7-Eleven",
-    cost: 150,
-    image: "/images/booth/closed.jpg",
-    icon: Croissant,
-    iconColor: "bg-orange-100",
-    iconBgColor: "text-orange-600"
-  },
-  {
-    id: 3,
-    title: "10% off lunch combo",
-    description: "Save on sandwiches and wraps between 11 AM – 2 PM.",
-    partner: "7-Eleven",
-    cost: 180,
-    image: "/images/booth/closed.jpg",
-    icon: Sandwich,
-    iconColor: "bg-green-100",
-    iconBgColor: "text-green-600",
-    badge: "Lunch",
-    isActive: () => {
-      const now = new Date();
-      const hour = now.getHours();
-      return hour >= 11 && hour < 14;
-    }
-  },
-  {
-    id: 4,
-    title: "Free iced coffee after 3 PM",
-    description: "Cool off after your booth session. One per day.",
-    partner: "7-Eleven",
-    cost: 250,
-    image: "/images/booth/closed.jpg",
-    icon: CupSoda,
-    iconColor: "bg-blue-100",
-    iconBgColor: "text-blue-600",
-    badge: "After 3 PM",
-    isActive: () => {
-      const now = new Date();
-      const hour = now.getHours();
-      return hour >= 15;
-    }
-  },
-  {
-    id: 5,
-    title: "Buy 1 get 1 free snack",
-    description: "Valid on selected snack items.",
-    partner: "7-Eleven",
-    cost: 200,
-    image: "/images/booth/closed.jpg",
-    icon: Candy,
-    iconColor: "bg-purple-100",
-    iconBgColor: "text-purple-600"
-  },
-  {
-    id: 6,
-    title: "20 free minutes",
-    description: "Earned automatically after 3 days in a row.",
-    partner: "BoothNow",
-    cost: 0,
-    image: "/images/booth/closed.jpg",
-    icon: Timer,
-    iconColor: "bg-indigo-100",
-    iconBgColor: "text-indigo-600",
-    badge: "Bonus"
-  },
-  {
-    id: 7,
-    title: "Unlimited coffee subscription",
-    description: "Free daily coffee for 30 days. Available for Silver tier and above.",
-    partner: "7-Eleven",
-    cost: 800,
-    image: "/images/booth/closed.jpg",
-    icon: Coffee,
-    iconColor: "bg-amber-100",
-    iconBgColor: "text-amber-600",
-    badge: "Silver+"
-  }
-];
-
-// Mock user data
-const mockUserData = {
-  availablePoints: 850,
-  memberTier: "Silver",
-  sessionsCompleted: 23,
-  rewardsUsed: 7,
-  myRewards: [
-    {
-      id: 1,
-      title: "15% off any coffee",
-      partner: "7-Eleven",
-      expiresAt: "2025-11-23",
-      status: "active"
-    },
-    {
-      id: 2,
-      title: "Free croissant with any coffee",
-      partner: "7-Eleven",
-      expiresAt: "2025-11-07",
-      status: "active"
-    }
-  ],
-  usageHistory: []
-};
+// Mock data now imported from shared file
 
 interface RewardCardProps {
   reward: typeof mockRewards[0];
@@ -177,10 +56,10 @@ function RewardCard({ reward, onClaim }: RewardCardProps) {
         <div className="flex items-center space-x-1">
           <Trophy className="w-4 h-4 text-amber-500" />
           <span className="font-medium text-gray-900">
-            {reward.cost === 0 ? 'Auto Reward' : `${reward.cost} points`}
+            {reward.points_required === 0 ? 'Auto Reward' : `${reward.points_required} points`}
           </span>
         </div>
-        {reward.cost === 0 ? (
+        {reward.points_required === 0 ? (
           <span className="bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm font-medium">
             Auto Reward
           </span>
@@ -228,15 +107,77 @@ function MyRewardCard({ reward, onUse }: MyRewardCardProps) {
 }
 
 export default function Rewards() {
+  const { userId } = useAuth();
   const [activeTab, setActiveTab] = useState('available');
   const [claimedRewards, setClaimedRewards] = useState<number[]>([]);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [showQrModal, setShowQrModal] = useState(false);
-  const [qrCodeReward, setQrCodeReward] = useState<typeof mockRewards[0] | null>(null);
+  const [qrCodeReward, setQrCodeReward] = useState<Reward | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [userData, setUserData] = useState(mockUserData);
+  const [rewards, setRewards] = useState<Reward[]>([]);
+  const [userRewards, setUserRewards] = useState<UserReward[]>([]);
+  const [usageHistory, setUsageHistory] = useState<RewardUsageHistory[]>([]);
+  const [userPoints, setUserPoints] = useState<UserPoints | null>(null);
+  const [loading, setLoading] = useState(true);
   const qrCodeRef = useRef<HTMLCanvasElement>(null);
+
+  // Load rewards data from database
+  useEffect(() => {
+    const loadRewardsData = async () => {
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        
+        // Load all data in parallel
+        const [rewardsData, userRewardsData, usageHistoryData, userPointsData] = await Promise.all([
+          rewardsService.getAvailableRewards(),
+          rewardsService.getUserRewards(userId),
+          rewardsService.getRewardUsageHistory(userId),
+          rewardsService.getUserPoints(userId)
+        ]);
+
+        setRewards(rewardsData);
+        setUserRewards(userRewardsData);
+        setUsageHistory(usageHistoryData);
+        setUserPoints(userPointsData);
+
+        // Update userData with real points
+        if (userPointsData) {
+          setUserData(prev => ({
+            ...prev,
+            availablePoints: userPointsData.points,
+            myRewards: userRewardsData.map(ur => ({
+              id: ur.reward_id,
+              title: ur.reward?.title || 'Unknown Reward',
+              partner: ur.reward?.partner || 'Unknown',
+              expiresAt: ur.used_at ? new Date(ur.used_at).toISOString().split('T')[0] : 'Never',
+              status: ur.is_used ? 'used' : 'available'
+            })),
+            usageHistory: usageHistoryData.map(uh => ({
+              id: uh.reward_id.toString(),
+              title: 'Used Reward',
+              partner: '7-Eleven',
+              usedDate: uh.used_at
+            }))
+          }));
+        }
+
+        console.log('✅ Rewards: Data loaded successfully');
+      } catch (error) {
+        console.error('❌ Rewards: Error loading data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRewardsData();
+  }, [userId]);
 
   // Clear QR code when modal closes
   useEffect(() => {
@@ -247,7 +188,7 @@ export default function Rewards() {
   }, [showQrModal]);
 
   // Generate QR code for reward
-  const generateQRCode = async (reward: typeof mockRewards[0]) => {
+  const generateQRCode = async (reward: Reward) => {
     try {
       // Create a unique reward code that includes reward ID, user ID, and timestamp
       const rewardCode = `BOOTHNOW_REWARD_${reward.id}_${Date.now()}`;
@@ -269,12 +210,19 @@ export default function Rewards() {
     }
   };
 
-  const handleClaimReward = (rewardId: number) => {
-    const reward = mockRewards.find(r => r.id === rewardId);
+  const handleClaimReward = async (rewardId: number) => {
+    if (!userId) {
+      setToastMessage('Please log in to claim rewards!');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
+
+    const reward = rewards.find(r => r.id === rewardId);
     if (!reward) return;
 
     // Check if reward is currently available (time-based validation)
-    if (reward.isActive && !reward.isActive()) {
+    if (!rewardsService.isRewardTimeActive(reward.time_restriction)) {
       setToastMessage('This reward is not available at this time!');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
@@ -282,63 +230,129 @@ export default function Rewards() {
     }
 
     // Check if user has enough points
-    if (reward.cost > userData.availablePoints) {
+    if (userPoints && reward.points_required > userPoints.points) {
       setToastMessage('Not enough points!');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
       return;
     }
 
-    // Add to claimed rewards and update user data
-    setClaimedRewards(prev => [...prev, rewardId]);
-    setUserData(prev => ({
-      ...prev,
-      availablePoints: prev.availablePoints - reward.cost,
-      myRewards: [...prev.myRewards, {
-        id: reward.id,
-        title: reward.title,
-        partner: reward.partner,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        status: "active"
-      }]
-    }));
-    
-    // Show success toast
-    setToastMessage(`"${reward.title}" claimed!`);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
-  };
+    try {
+      const result = await rewardsService.claimReward(userId, rewardId);
+      
+      if (result.success) {
+        // Reload data to get updated points and rewards
+        const [userRewardsData, userPointsData] = await Promise.all([
+          rewardsService.getUserRewards(userId),
+          rewardsService.getUserPoints(userId)
+        ]);
 
-  const handleUseReward = async (rewardId: number) => {
-    const rewardToUse = userData.myRewards.find(r => r.id === rewardId);
-    if (rewardToUse) {
-      // Find the full reward details from mockRewards
-      const fullReward = mockRewards.find(r => r.id === rewardId);
-      if (fullReward) {
-        setQrCodeReward(fullReward);
-        await generateQRCode(fullReward);
-        setShowQrModal(true);
+        setUserRewards(userRewardsData);
+        setUserPoints(userPointsData);
+
+        // Update userData
+        setUserData(prev => ({
+          ...prev,
+          availablePoints: userPointsData?.points || prev.availablePoints,
+          myRewards: userRewardsData.map(ur => ({
+            id: ur.reward_id,
+            title: ur.reward?.title || 'Unknown Reward',
+            partner: ur.reward?.partner || 'Unknown',
+            expiresAt: ur.used_at ? new Date(ur.used_at).toISOString().split('T')[0] : 'Never',
+            status: ur.is_used ? 'used' : 'available'
+          }))
+        }));
+        
+        setToastMessage(`"${reward.title}" claimed!`);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      } else {
+        setToastMessage(result.error || 'Failed to claim reward!');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
       }
+    } catch (error) {
+      console.error('Error claiming reward:', error);
+      setToastMessage('An error occurred while claiming the reward!');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     }
   };
 
-  const handleQrScan = () => {
-    if (qrCodeReward) {
-      setUserData(prev => ({
-        ...prev,
-        myRewards: prev.myRewards.filter(r => r.id !== qrCodeReward.id),
-        usageHistory: [...prev.usageHistory, { 
-          id: qrCodeReward.id,
-          title: qrCodeReward.title,
-          partner: qrCodeReward.partner,
-          usedDate: new Date().toISOString()
-        }]
-      }));
-      setToastMessage(`"${qrCodeReward.title}" used!`);
+  const handleUseReward = async (rewardId: number) => {
+    if (!userId) {
+      setToastMessage('Please log in to use rewards!');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
-      setShowQrModal(false);
-      setQrCodeReward(null);
+      return;
+    }
+
+    const rewardToUse = userRewards.find(r => r.reward_id === rewardId);
+    if (rewardToUse && rewardToUse.reward) {
+      setQrCodeReward(rewardToUse.reward);
+      await generateQRCode(rewardToUse.reward);
+      setShowQrModal(true);
+    }
+  };
+
+  const handleQrScan = async () => {
+    if (!qrCodeReward || !userId) return;
+
+    try {
+      // Find the user reward to mark as used
+      const userReward = userRewards.find(r => r.reward_id === qrCodeReward.id);
+      if (!userReward) {
+        setToastMessage('Reward not found!');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        return;
+      }
+
+      const result = await rewardsService.useReward(userId, userReward.id, qrCodeDataUrl);
+      
+      if (result.success) {
+        // Reload data to get updated rewards and usage history
+        const [userRewardsData, usageHistoryData] = await Promise.all([
+          rewardsService.getUserRewards(userId),
+          rewardsService.getRewardUsageHistory(userId)
+        ]);
+
+        setUserRewards(userRewardsData);
+        setUsageHistory(usageHistoryData);
+
+        // Update userData
+        setUserData(prev => ({
+          ...prev,
+          myRewards: userRewardsData.map(ur => ({
+            id: ur.reward_id,
+            title: ur.reward?.title || 'Unknown Reward',
+            partner: ur.reward?.partner || 'Unknown',
+            expiresAt: ur.used_at ? new Date(ur.used_at).toISOString().split('T')[0] : 'Never',
+            status: ur.is_used ? 'used' : 'available'
+          })),
+          usageHistory: usageHistoryData.map(uh => ({
+            id: uh.reward_id.toString(),
+            title: 'Used Reward',
+            partner: '7-Eleven',
+            usedDate: uh.used_at
+          }))
+        }));
+
+        setToastMessage(`"${qrCodeReward.title}" used!`);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        setShowQrModal(false);
+        setQrCodeReward(null);
+      } else {
+        setToastMessage(result.error || 'Failed to use reward!');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      }
+    } catch (error) {
+      console.error('Error using reward:', error);
+      setToastMessage('An error occurred while using the reward!');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     }
   };
 
@@ -479,7 +493,7 @@ export default function Rewards() {
                 <Gift className="w-6 h-6 text-green-600" />
               </div>
               <h3 className="font-semibold text-gray-900 mb-2">Redeem Rewards</h3>
-              <p className="text-gray-600 text-sm">Exchange points for discounts and exclusive offers</p>
+              <p className="text-gray-600 text-sm">Exchange points for 7-Eleven discounts and exclusive offers</p>
             </div>
           </div>
         </div>
@@ -524,15 +538,76 @@ export default function Rewards() {
 
           {/* Tab Content */}
           <div className="p-6">
-            {activeTab === 'available' && (
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+                <span className="ml-2 text-gray-600">Loading rewards...</span>
+              </div>
+            ) : activeTab === 'available' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {mockRewards.map((reward) => (
-                  <RewardCard
-                    key={reward.id}
-                    reward={reward}
-                    onClaim={handleClaimReward}
-                  />
-                ))}
+                {rewards.map((reward) => {
+                  const IconComponent = Coffee; // Default icon since Reward interface doesn't have icon_name
+                  const isTimeActive = rewardsService.isRewardTimeActive(reward.time_restriction);
+                  const isClaimed = userRewards.some(ur => ur.reward_id === reward.id);
+                  
+                  return (
+                    <div key={reward.id} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 relative">
+                      {/* Badge */}
+                      {/* Badge removed - not in Reward interface */}
+                      
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="w-16 h-16 rounded-lg bg-orange-100 flex items-center justify-center">
+                          <IconComponent className="w-8 h-8 text-orange-600" />
+                        </div>
+                      </div>
+                      
+                      <h3 className="font-semibold text-gray-900 text-lg mb-2">{reward.title}</h3>
+                      <p className="text-gray-600 text-sm mb-3">{reward.description}</p>
+                      <p className="text-gray-500 text-sm mb-4">From {reward.partner}</p>
+                      
+                      {/* Time-based availability indicator */}
+                      {reward.time_restriction && (
+                        <div className={`text-xs mb-3 px-2 py-1 rounded-full inline-block ${
+                          isTimeActive 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          {isTimeActive ? 'Available now' : 'Not available at this time'}
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg font-bold text-orange-600">
+                          {reward.points_required === 0 ? 'Free' : `${reward.points_required} points`}
+                        </span>
+                        {isClaimed ? (
+                          <button 
+                            onClick={() => handleUseReward(reward.id)}
+                            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                          >
+                            Use Now
+                          </button>
+                        ) : reward.points_required === 0 ? (
+                          <span className="bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm font-medium">
+                            Auto Reward
+                          </span>
+                        ) : (
+                          <button 
+                            onClick={() => handleClaimReward(reward.id)}
+                            disabled={!isTimeActive || (userPoints && reward.points_required > userPoints.points)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              !isTimeActive || (userPoints && reward.points_required > userPoints.points)
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-orange-600 hover:bg-orange-700 text-white'
+                            }`}
+                          >
+                            Claim
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 

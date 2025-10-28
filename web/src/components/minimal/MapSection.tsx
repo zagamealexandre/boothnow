@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { boothService, Booth } from '../../services/boothService'
 import BoothInfoCard from '../ui/booth-info-card'
+import QRCodeReader from '../QRCodeReader'
+import PreBookingScheduler from '../PreBookingScheduler'
+import { useBoothActions, EnhancedBooth } from '../../hooks/useBoothActions'
 
-// Enhanced Booth interface with time-based information
-export interface EnhancedBooth extends Booth {
-  slotLengthMinutes?: number
-  freeUntil?: string
-}
+// Re-export the interface for backward compatibility
+export type { EnhancedBooth }
 
 // Helper function to format booth status with readable messages
 function formatBoothStatus(booth: EnhancedBooth) {
@@ -63,13 +63,24 @@ function formatBoothStatus(booth: EnhancedBooth) {
 }
 
 // Enhanced BoothNow Map with live status indicators and booking interface
-export function MapSection() {
+export function MapSection({ userId, filterStatus = 'all', compact = false, hideHeader = false }: { userId?: string, filterStatus?: string, compact?: boolean, hideHeader?: boolean } = {}) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<google.maps.Map | null>(null)
-  const [selectedStatus, setSelectedStatus] = useState<string>('all')
+  const [selectedStatus, setSelectedStatus] = useState<string>(filterStatus)
   const [booths, setBooths] = useState<EnhancedBooth[]>([])
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  
+  // Use the shared booth actions hook
+  const {
+    showQRReader,
+    showScheduler,
+    currentBoothId,
+    currentBoothName,
+    handleBoothAction,
+    closeQRReader,
+    closeScheduler
+  } = useBoothActions()
 
   // Enhanced booth data model with time-based information - All 7-Eleven locations
   const mockBooths: EnhancedBooth[] = [
@@ -255,6 +266,7 @@ export function MapSection() {
     },
   ]
 
+
   // Load booths and set up real-time updates
   useEffect(() => {
     const loadBooths = async () => {
@@ -281,6 +293,11 @@ export function MapSection() {
       unsubscribe()
     }
   }, [selectedStatus])
+
+  // Sync status with external filter
+  useEffect(() => {
+    setSelectedStatus(filterStatus)
+  }, [filterStatus])
 
   useEffect(() => {
     const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
@@ -418,7 +435,7 @@ export function MapSection() {
           <BoothInfoCard
             booth={booth}
             userLocation={userLocation}
-            handleBoothAction={handleBoothAction}
+            handleBoothAction={(boothId, action) => handleBoothAction(boothId, action, booths, setBooths)}
             dist={dist}
           />
         )
@@ -465,68 +482,8 @@ export function MapSection() {
         pixelOffset: new google.maps.Size(0, -10)
       })
 
-      // Enhanced booth action handler
-      const handleBoothAction = async (boothId: string, action: string) => {
-        console.log(`Booth ${boothId} action: ${action}`)
-        
-        try {
-          let result
-          switch (action) {
-            case 'book':
-              result = await boothService.bookBooth(boothId)
-              if (result.success) {
-                alert('Booth booked successfully!')
-                // Update booth status in state
-                setBooths(prevBooths => 
-                  prevBooths.map(booth => 
-                    booth.id === boothId 
-                      ? { ...booth, status: 'busy', timeRemaining: 60, next_available_at: new Date(Date.now() + 60 * 60000).toISOString() }
-                      : booth
-                  )
-                )
-              } else {
-                alert(`Booking failed: ${result.error}`)
-              }
-              break
-            case 'prebook':
-              const startTime = new Date(Date.now() + 60 * 60000).toISOString() // 1 hour from now
-              result = await boothService.prebookBooth(boothId, startTime)
-              if (result.success) {
-                alert('Booth pre-booked successfully!')
-                // Update booth status in state
-                setBooths(prevBooths => 
-                  prevBooths.map(booth => 
-                    booth.id === boothId 
-                      ? { ...booth, status: 'prebooked', next_available_at: startTime }
-                      : booth
-                  )
-                )
-              } else {
-                alert(`Pre-booking failed: ${result.error}`)
-              }
-              break
-            case 'waitlist':
-              result = await boothService.joinWaitlist(boothId)
-              if (result.success) {
-                alert('Added to waitlist!')
-              } else {
-                alert(`Waitlist failed: ${result.error}`)
-              }
-              break
-            case 'notify':
-              alert('You will be notified when this booth becomes available!')
-              break
-            default:
-              alert(`Action: ${action} for booth ${boothId}`)
-          }
-        } catch (error) {
-          console.error('Error handling booth action:', error)
-          alert('An error occurred. Please try again.')
-        }
-      }
-
       // Make handleBoothAction globally accessible for the React component
-      ;(window as any).handleBoothAction = handleBoothAction
+      ;(window as any).handleBoothAction = (boothId: string, action: string) => handleBoothAction(boothId, action, booths, setBooths)
 
       // Add markers for booths with enhanced animations
       const addBoothMarkers = (boothsToShow: EnhancedBooth[]) => {
@@ -673,37 +630,20 @@ export function MapSection() {
   }
 
   return (
-    <section className="bg-[#F9FAFB] py-20">
+    <section className={`${compact ? '' : 'bg-[#F9FAFB] py-20'}`}>
       <div className="mx-auto max-w-6xl px-6">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-[#1A1A1A] mb-4">
-            Find a Booth That Fits Your Schedule
-          </h2>
-          <p className="text-lg text-[#666] max-w-2xl mx-auto">
-            Instant access or pre-book your preferred time. Live booth availability updated in real time.
-          </p>
-        </div>
-        
-        {/* Status Filter Toggle */}
-        <div className="flex justify-center mb-8">
-          <div className="bg-white rounded-full p-1 shadow-sm border border-[#E6E6E6]">
-            {['all', 'available', 'busy', 'prebooked'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setSelectedStatus(status)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                  selectedStatus === status
-                    ? 'bg-[#2E6A9C] text-white shadow-sm'
-                    : 'text-[#666] hover:text-[#1A1A1A] hover:bg-[#F9FAFB]'
-                }`}
-              >
-                {status === 'all' ? 'All' : 
-                 status === 'available' ? 'Available' :
-                 status === 'busy' ? 'Busy' : 'Pre-booked'}
-              </button>
-            ))}
+        {!hideHeader && (
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-[#1A1A1A] mb-4">
+              Find a Booth That Fits Your Schedule
+            </h2>
+            <p className="text-lg text-[#666] max-w-2xl mx-auto font-body">
+              Instant access or pre-book your preferred time. Live booth availability updated in real time.
+            </p>
           </div>
-        </div>
+        )}
+        
+        {/* External filtering is handled by props; tabs removed for landing */}
         
         <div className="bg-white rounded-2xl shadow-sm border border-[#E6E6E6] overflow-hidden relative">
           {isLoading && (
@@ -718,47 +658,107 @@ export function MapSection() {
             <div ref={mapRef} className="h-full w-full" />
           </div>
         </div>
-        
-        {/* Enhanced Status Legend */}
-        <div className="mt-6 flex justify-center">
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-[#E6E6E6]">
-            <div className="text-sm font-medium text-[#1A1A1A] mb-3 text-center">Booth Status</div>
-            <div className="flex gap-6 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#27AE60]"></div>
-                <span className="text-[#666]">Available</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#F1C40F]"></div>
-                <span className="text-[#666]">Busy</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#E74C3C]"></div>
-                <span className="text-[#666]">Pre-booked</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#BDC3C7] opacity-60"></div>
-                <span className="text-[#666]">Maintenance</span>
+        {!hideHeader && (
+          <>
+            {/* Enhanced Status Legend */}
+            <div className="mt-6 flex justify-center">
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-[#E6E6E6]">
+                <div className="text-sm font-medium text-[#1A1A1A] mb-3 text-center">Booth Status</div>
+                <div className="flex gap-6 text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-[#27AE60]"></div>
+                    <span className="text-[#666]">Available</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-[#F1C40F]"></div>
+                    <span className="text-[#666]">Busy</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-[#E74C3C]"></div>
+                    <span className="text-[#666]">Pre-booked</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-[#BDC3C7] opacity-60"></div>
+                    <span className="text-[#666]">Maintenance</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-        
-        <div className="mt-6 flex justify-center gap-4">
-          <button 
-            onClick={() => (window as any).recenterMap?.()}
-            className="bg-[#2E6A9C] text-white px-6 py-2 rounded-full text-sm font-medium hover:bg-[#1e4a6b] transition-colors"
-          >
-            📍 Find My Location
-          </button>
-          <button 
-            onClick={() => window.location.href = '/dashboard'}
-            className="bg-white border border-[#E6E6E6] text-[#1A1A1A] px-6 py-2 rounded-full text-sm font-medium hover:bg-[#F9FAFB] transition-colors"
-          >
-            🏪 View All Booths
-          </button>
-        </div>
+            <div className="mt-6 flex justify-center gap-4">
+              <button 
+                onClick={() => (window as any).recenterMap?.()}
+                className="bg-[#2E6A9C] text-white px-6 py-2 rounded-full text-sm font-medium hover:bg-[#1e4a6b] transition-colors"
+              >
+                📍 Find My Location
+              </button>
+              <button 
+                onClick={() => window.location.href = '/dashboard'}
+                className="bg-white border border-[#E6E6E6] text-[#1A1A1A] px-6 py-2 rounded-full text-sm font-medium hover:bg-[#F9FAFB] transition-colors"
+              >
+                🏪 View All Booths
+              </button>
+            </div>
+          </>
+        )}
       </div>
+
+      {/* Debug modal state */}
+      {(() => {
+        console.log('🔧 MapSection - Modal state:', { showQRReader, showScheduler, currentBoothId })
+        return null
+      })()}
+      
+      {/* QR Code Reader Modal */}
+      {showQRReader && currentBoothId && (
+        <QRCodeReader
+          isOpen={showQRReader}
+          onClose={closeQRReader}
+          onBookingSuccess={(reservationId) => {
+            console.log('✅ Booking successful:', reservationId)
+            closeQRReader()
+            
+            // Update booth status in state
+            setBooths(prevBooths => 
+              prevBooths.map(booth => 
+                booth.id === currentBoothId 
+                  ? { ...booth, status: 'busy', timeRemaining: 60, next_available_at: new Date(Date.now() + 60 * 60000).toISOString() }
+                  : booth
+              )
+            )
+            
+            // Trigger a global event to refresh bookings in Dashboard
+            window.dispatchEvent(new CustomEvent('bookingUpdated', { 
+              detail: { type: 'immediate', reservationId } 
+            }))
+            
+            alert('Booth booked successfully! Your session has started.')
+          }}
+          boothId={currentBoothId}
+          boothName={currentBoothName}
+          userId={userId}
+        />
+      )}
+
+      {/* Pre-booking Scheduler Modal */}
+      {showScheduler && currentBoothId && (
+        <PreBookingScheduler
+          isOpen={showScheduler}
+          onClose={closeScheduler}
+          onBookingSuccess={(reservationId) => {
+            console.log('✅ Pre-booking successful:', reservationId)
+            closeScheduler()
+            
+            // Trigger a global event to refresh bookings in Dashboard
+            window.dispatchEvent(new CustomEvent('bookingUpdated', { 
+              detail: { type: 'prebooked', reservationId } 
+            }))
+            
+            alert('Booth pre-booked successfully! You will receive a confirmation shortly.')
+          }}
+          boothId={currentBoothId}
+          boothName={currentBoothName}
+        />
+      )}
     </section>
   )
 }

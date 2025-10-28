@@ -8,13 +8,13 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        brand: {
-          background: '#F5F6F7',
-          card: '#FFFFFF',
-          text: '#1E1E1E',
-          accent: '#3A7BD5',
-          border: '#E4E6E8',
-          success: '#5BC08A',
+        kubo: {
+          primary: '#F5BF59',
+          secondary: '#2B3F5F',
+          textDark: '#151515',
+          textGrey: '#656565',
+          check: '#196F4B',
+          border: '#D5D5D5',
         },
         primary: {
           50: '#eff6ff',
@@ -42,7 +42,8 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        heading: ['var(--font-heading)'],
+        body: ['"Inter"', 'var(--font-body)', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
         calm: '0 4px 16px rgba(0,0,0,0.06)',

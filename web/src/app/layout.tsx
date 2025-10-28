@@ -1,13 +1,14 @@
 import './globals.css'
-import { Inter } from 'next/font/google'
+import { Aboreto, Inter } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
 
-const inter = Inter({ subsets: ['latin'] })
+const heading = Aboreto({ subsets: ['latin'], weight: '400', variable: '--font-heading' })
+const body = Inter({ subsets: ['latin'], variable: '--font-body' })
 
 export const metadata = {
-  title: 'BoothNow - On-demand Workspaces',
-  description: 'Find your perfect workspace in convenience stores. Soundproof micro-workspaces for remote professionals.',
-  keywords: 'workspace, remote work, convenience store, soundproof, mobile office',
+  title: 'KUBO – Focus Space, On Demand',
+  description: 'Private business booths. Calm, premium and on-demand workspaces across the city.',
+  keywords: 'kubo, focus space, work booth, private workspace, prebook, pay as you go',
 }
 
 export default function RootLayout({
@@ -17,8 +18,8 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
-      <html lang="en">
-        <body className={inter.className}>
+      <html lang="en" className={`${heading.variable} ${body.variable}`}>
+        <body>
           {children}
         </body>
       </html>

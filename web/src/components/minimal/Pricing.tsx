@@ -135,7 +135,7 @@ export function Pricing() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-lg text-[#666] max-w-2xl mx-auto"
+            className="text-lg text-[#666] max-w-2xl mx-auto font-body"
           >
             Flexible options for private on-demand workspaces.
           </motion.p>

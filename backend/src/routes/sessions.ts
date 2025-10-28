@@ -7,6 +7,15 @@ const router = Router();
 // GET /api/sessions - Get user's active sessions
 router.get('/', async (req: AuthenticatedRequest, res) => {
   try {
+    // Resolve internal user UUID from Clerk sub (req.userId)
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('id')
+      .eq('clerk_user_id', req.userId as string)
+      .maybeSingle();
+
+    const internalUserId = userRow?.id || null;
+
     const { data: sessions, error } = await supabase
       .from('sessions')
       .select(`
@@ -19,7 +28,12 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
           lng
         )
       `)
-      .eq('user_id', req.userId)
+      // Prefer internal user id when available; otherwise fall back to clerk_user_id
+      .or(
+        internalUserId
+          ? `user_id.eq.${internalUserId},clerk_user_id.eq.${req.userId}`
+          : `clerk_user_id.eq.${req.userId}`
+      )
       .eq('status', 'active')
       .order('created_at', { ascending: false });
 
@@ -45,16 +59,29 @@ router.post('/start', async (req: AuthenticatedRequest, res) => {
       return res.status(400).json({ error: 'Booth ID and reservation ID are required' });
     }
 
+    // Resolve internal user UUID from Clerk sub (req.userId)
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('id')
+      .eq('clerk_user_id', req.userId as string)
+      .maybeSingle();
+
+    const insertPayload: any = {
+      booth_id,
+      reservation_id,
+      start_time: new Date().toISOString(),
+      status: 'active',
+      clerk_user_id: req.userId,
+    };
+
+    if (userRow?.id) {
+      insertPayload.user_id = userRow.id;
+    }
+
     // Create new session
     const { data: session, error } = await supabase
       .from('sessions')
-      .insert({
-        user_id: req.userId,
-        booth_id,
-        reservation_id,
-        start_time: new Date().toISOString(),
-        status: 'active'
-      })
+      .insert(insertPayload)
       .select(`
         *,
         booths (
@@ -72,6 +99,58 @@ router.post('/start', async (req: AuthenticatedRequest, res) => {
       return res.status(500).json({ error: 'Failed to create session' });
     }
 
+    // Update booth status to busy and set next_available_at
+    try {
+      // Try to derive precise end time: reservation end_time > booth.max_duration fallback > default
+      let nextAvailableAt: string | null = null;
+
+      // 1) If there is a reservation, use its end_time
+      if (reservation_id) {
+        const { data: reservation } = await supabase
+          .from('reservations')
+          .select('end_time')
+          .eq('id', reservation_id)
+          .maybeSingle();
+        if (reservation?.end_time) {
+          nextAvailableAt = new Date(reservation.end_time).toISOString();
+        }
+      }
+
+      // 2) Else compute from user's plan (pay-per-use: 60m, subscription: 90m), capped by booth.max_duration if set
+      if (!nextAvailableAt) {
+        // Fetch user's payment_type and booth max_duration in parallel
+        const [{ data: userPlanRow }, { data: boothRow }] = await Promise.all([
+          supabase
+            .from('users')
+            .select('payment_type')
+            .eq('id', userRow?.id as string)
+            .maybeSingle(),
+          supabase
+            .from('booths')
+            .select('max_duration')
+            .eq('id', booth_id)
+            .maybeSingle(),
+        ]);
+
+        const planType = (userPlanRow?.payment_type || 'pay_per_use').toLowerCase();
+        const planMinutes = planType === 'pay_per_use' ? 60 : 90; // monthly/subscription => 90
+        const cap = typeof boothRow?.max_duration === 'number' ? boothRow!.max_duration! : planMinutes;
+        const minutes = Math.min(planMinutes, cap || planMinutes);
+        nextAvailableAt = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+      }
+
+      await supabase
+        .from('booths')
+        .update({
+          status: 'busy',
+          availability: false,
+          next_available_at: nextAvailableAt,
+          current_session_id: session.id,
+        } as any)
+        .eq('id', session.booth_id);
+    } catch (e) {
+      console.warn('Failed to update booth status to busy:', e);
+    }
 
     return res.json({ 
       session,
@@ -90,6 +169,13 @@ router.post('/:id/end', async (req: AuthenticatedRequest, res) => {
     const { id } = req.params;
     const { total_minutes, total_cost } = req.body;
 
+    // Resolve internal user UUID from Clerk sub (req.userId)
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('id')
+      .eq('clerk_user_id', req.userId as string)
+      .maybeSingle();
+
     // Update session
     const { data: session, error } = await supabase
       .from('sessions')
@@ -100,7 +186,11 @@ router.post('/:id/end', async (req: AuthenticatedRequest, res) => {
         total_cost
       })
       .eq('id', id)
-      .eq('user_id', req.userId)
+      .or(
+        userRow?.id
+          ? `user_id.eq.${userRow.id},clerk_user_id.eq.${req.userId}`
+          : `clerk_user_id.eq.${req.userId}`
+      )
       .select(`
         *,
         booths (
@@ -121,10 +211,19 @@ router.post('/:id/end', async (req: AuthenticatedRequest, res) => {
     }
 
     // Update booth availability
-    await supabase
-      .from('booths')
-      .update({ availability: true })
-      .eq('id', session.booth_id);
+    try {
+      await supabase
+        .from('booths')
+        .update({
+          availability: true,
+          status: 'available',
+          next_available_at: null,
+          current_session_id: null,
+        } as any)
+        .eq('id', session.booth_id);
+    } catch (e) {
+      console.warn('Failed to update booth status to available:', e);
+    }
 
 
     return res.json({ 
@@ -143,11 +242,22 @@ router.get('/:id/timer', async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
 
+    // Resolve internal user UUID from Clerk sub (req.userId)
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('id')
+      .eq('clerk_user_id', req.userId as string)
+      .maybeSingle();
+
     const { data: session, error } = await supabase
       .from('sessions')
       .select('*')
       .eq('id', id)
-      .eq('user_id', req.userId)
+      .or(
+        userRow?.id
+          ? `user_id.eq.${userRow.id},clerk_user_id.eq.${req.userId}`
+          : `clerk_user_id.eq.${req.userId}`
+      )
       .single();
 
     if (error || !session) {

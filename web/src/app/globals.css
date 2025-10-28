@@ -1,40 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-body), system-ui, sans-serif;
     scroll-behavior: smooth;
   }
   
   body {
-    @apply bg-[color:var(--bg)] text-[color:var(--text)];
+    @apply bg-white text-[color:var(--text)];
+    font-family: "Inter", var(--font-body), system-ui, sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading), system-ui, sans-serif;
   }
 }
 
 @layer components {
-  .btn-primary {
-    @apply bg-[color:var(--accent)] hover:opacity-90 text-white font-medium py-2 px-4 rounded-[10px] transition-all duration-300 shadow-sm;
+  .btn-outline-dark {
+    @apply border border-kubo-textDark text-black rounded-full font-medium px-6 py-2 transition-opacity duration-200 hover:opacity-90;
   }
-  
-  .btn-secondary {
-    @apply bg-white text-[color:var(--text)] border border-[color:var(--border)] hover:bg-[color:var(--card)] font-medium py-2 px-4 rounded-[10px] transition-colors duration-200;
+  .btn-gold {
+    @apply bg-kubo-primary text-black rounded-full font-medium px-6 py-2 transition-opacity duration-200 hover:opacity-90;
   }
   
   .card {
-    @apply bg-[color:var(--card)] rounded-[16px] shadow-calm border border-[color:var(--border)] p-6 transition-all duration-300;
+    @apply bg-white rounded-2xl shadow-calm border border-kubo-border p-6 transition-all duration-300;
   }
   
   .input {
-    @apply w-full px-3 py-2 border border-[color:var(--border)] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)] focus:border-transparent bg-white;
+    @apply w-full px-3 py-2 border border-kubo-border rounded-[10px] focus:outline-none focus:ring-2 focus:ring-kubo-secondary focus:border-transparent bg-white;
   }
 }
 
 @layer utilities {
-  .text-gradient {
-    @apply bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent;
-  }
+  .text-gradient { }
   
   .animate-float {
     animation: float 6s ease-in-out infinite;
@@ -62,10 +66,5 @@
 }
 
 :root{
-  --bg:#F5F6F7;
-  --card:#FFFFFF;
-  --text:#1E1E1E;
-  --accent:#3A7BD5;
-  --border:#E4E6E8;
-  --success:#5BC08A;
+  --text:#151515;
 }

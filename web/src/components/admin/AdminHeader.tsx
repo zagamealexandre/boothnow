@@ -1,6 +1,7 @@
 'use client'
 
-import { Bell, Search, UserButton } from '@clerk/nextjs'
+import { Bell, Search } from 'lucide-react'
+import { UserButton } from '@clerk/nextjs'
 import { useState } from 'react'
 
 export function AdminHeader() {

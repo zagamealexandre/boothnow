@@ -1,6 +1,6 @@
 "use client"
 
-import { MapPin, Clock, Lock, Wrench, Info, CalendarDays, UserPlus, CircleDot } from "lucide-react"
+import { MapPin, Clock, Lock, Wrench, Info, CalendarDays, UserPlus, CircleDot, QrCode } from "lucide-react"
 import { cn } from "../../lib/utils"
 
 // Import the EnhancedBooth interface from MapSection
@@ -91,43 +91,70 @@ export default function BoothInfoCard({ booth, userLocation, handleBoothAction, 
     switch (status) {
       case 'available':
         return { 
-          text: 'Book this booth', 
-          action: 'book', 
-          primary: true, 
-          icon: <CalendarDays className="h-4 w-4 mr-2" />,
-          disabled: false
+          buttons: [
+            { 
+              text: '📱 Book now', 
+              action: 'book_now', 
+              primary: true, 
+              icon: <QrCode className="h-4 w-4 mr-2" />,
+              disabled: false
+            },
+            { 
+              text: '📅 Pre-book', 
+              action: 'prebook', 
+              primary: false, 
+              icon: <CalendarDays className="h-4 w-4 mr-2" />,
+              disabled: false
+            }
+          ]
         }
       case 'busy':
         return { 
-          text: 'Pre-book slot', 
-          action: 'prebook', 
-          primary: false, 
-          icon: <CalendarDays className="h-4 w-4 mr-2" />,
-          disabled: false
+          buttons: [
+            { 
+              text: 'Pre-book slot', 
+              action: 'prebook', 
+              primary: true, 
+              icon: <CalendarDays className="h-4 w-4 mr-2" />,
+              disabled: false
+            }
+          ]
         }
       case 'prebooked':
         return { 
-          text: 'Join waitlist', 
-          action: 'waitlist', 
-          primary: false, 
-          icon: <UserPlus className="h-4 w-4 mr-2" />,
-          disabled: false
+          buttons: [
+            { 
+              text: 'Join waitlist', 
+              action: 'waitlist', 
+              primary: true, 
+              icon: <UserPlus className="h-4 w-4 mr-2" />,
+              disabled: false
+            }
+          ]
         }
       case 'maintenance':
         return { 
-          text: 'Notify when ready', 
-          action: 'notify', 
-          primary: false, 
-          icon: <Info className="h-4 w-4 mr-2" />,
-          disabled: true
+          buttons: [
+            { 
+              text: 'Notify when ready', 
+              action: 'notify', 
+              primary: true, 
+              icon: <Info className="h-4 w-4 mr-2" />,
+              disabled: true
+            }
+          ]
         }
       default:
         return { 
-          text: 'Check availability', 
-          action: 'check', 
-          primary: false, 
-          icon: <Info className="h-4 w-4 mr-2" />,
-          disabled: false
+          buttons: [
+            { 
+              text: 'Check availability', 
+              action: 'check', 
+              primary: true, 
+              icon: <Info className="h-4 w-4 mr-2" />,
+              disabled: false
+            }
+          ]
         }
     }
   }
@@ -165,20 +192,28 @@ export default function BoothInfoCard({ booth, userLocation, handleBoothAction, 
 
       {/* Action Buttons - stacked vertically, full width */}
       <div className="space-y-2 relative z-10">
-        <button
-          onClick={() => !buttonInfo.disabled && handleBoothAction(booth.id, buttonInfo.action)}
-          disabled={buttonInfo.disabled}
-          className={cn(
-            "w-full flex items-center justify-center rounded-lg py-2 text-xs font-medium transition-all duration-300 hover:scale-95 active:scale-90",
-            buttonInfo.primary
-              ? "bg-blue-600 text-white shadow-[4px_4px_8px_rgba(59,130,246,0.3)] hover:shadow-[2px_2px_4px_rgba(59,130,246,0.2)] group-hover:bg-blue-500"
-              : "bg-gray-800 text-blue-400 border border-blue-600 shadow-[4px_4px_8px_rgba(0,0,0,0.2)] hover:shadow-[2px_2px_4px_rgba(0,0,0,0.1)] group-hover:bg-gray-700 group-hover:border-blue-500",
-            buttonInfo.disabled && "opacity-50 cursor-not-allowed hover:scale-100"
-          )}
-        >
-          {buttonInfo.icon}
-          <span className="ml-1.5 text-xs">{buttonInfo.text}</span>
-        </button>
+        {buttonInfo.buttons.map((button, index) => (
+          <button
+            key={index}
+            onClick={() => {
+              console.log(`🔧 BoothInfoCard - Button clicked: ${button.text}, Action: ${button.action}`)
+              if (!button.disabled) {
+                handleBoothAction(booth.id, button.action)
+              }
+            }}
+            disabled={button.disabled}
+            className={cn(
+              "w-full flex items-center justify-center rounded-lg py-2 text-xs font-medium transition-all duration-300 hover:scale-95 active:scale-90",
+              button.primary
+                ? "bg-blue-600 text-white shadow-[4px_4px_8px_rgba(59,130,246,0.3)] hover:shadow-[2px_2px_4px_rgba(59,130,246,0.2)] group-hover:bg-blue-500"
+                : "bg-gray-800 text-blue-400 border border-blue-600 shadow-[4px_4px_8px_rgba(0,0,0,0.2)] hover:shadow-[2px_2px_4px_rgba(0,0,0,0.1)] group-hover:bg-gray-700 group-hover:border-blue-500",
+              button.disabled && "opacity-50 cursor-not-allowed hover:scale-100"
+            )}
+          >
+            {button.icon}
+            <span className="ml-1.5 text-xs">{button.text}</span>
+          </button>
+        ))}
         
         <a
           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booth.address)}`}

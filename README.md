@@ -26,7 +26,7 @@ BoothNow is a web-based platform for on-demand, soundproof micro-workspaces embe
 ### Services
 - **Clerk** - Authentication and user management
 - **Supabase** - Database and storage
-- **Stripe** - Payment processing
+- **Creem** - Payment processing and subscription management
 
 ## 📱 Web App Features
 

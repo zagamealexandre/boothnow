@@ -7,7 +7,7 @@ This guide will help you set up the complete BoothNow platform with all integrat
 - Node.js 18+ and npm
 - Expo CLI for mobile development
 - Git
-- Accounts for: Clerk, Supabase, Google Cloud, Stripe
+- Accounts for: Clerk, Supabase, Google Cloud, Creem
 
 ## 1. Clone and Install Dependencies
 
@@ -31,7 +31,7 @@ Required services:
 - **Clerk**: Get keys from [clerk.com](https://clerk.com)
 - **Supabase**: Create project at [supabase.com](https://supabase.com)
 - **Google Maps**: Enable APIs at [Google Cloud Console](https://console.cloud.google.com)
-- **Stripe**: Get keys from [stripe.com](https://stripe.com)
+- **Creem**: Get API key from [creem.io](https://creem.io)
 
 ### Frontend (Mobile)
 Copy `frontend/env.example` to `frontend/.env`:
@@ -76,14 +76,29 @@ cp env.example .env.local
 3. Create API key with restrictions
 4. Configure billing
 
-### Stripe Payments
-1. Create Stripe account
-2. Get API keys (test/live)
-3. Set up webhook endpoints
-4. Configure products and pricing
+### Creem Payments
+1. Create Creem account at [creem.io](https://creem.io)
+2. Get API key (test/live) from dashboard
+3. Set up webhook endpoints (use NGROK for local development)
+4. Configure products and pricing in Creem dashboard
+5. Test API connection with provided test key
 
 
-## 5. Development Setup
+## 5. Database Setup
+
+### Initialize Supabase Database
+1. **Run the complete schema in Supabase SQL Editor:**
+   - Copy the contents of `backend/database/complete_schema.sql`
+   - Paste and run in your Supabase project's SQL Editor
+   - This creates all tables, indexes, and RLS policies
+
+2. **Setup sample data:**
+```bash
+cd backend
+npm run db:setup
+```
+
+## 6. Development Setup
 
 ### Start Backend
 ```bash
@@ -95,6 +110,17 @@ npm run dev
 ```bash
 cd web
 npm run dev
+```
+
+### Expose for Webhooks (Optional)
+```bash
+# Install NGROK globally
+npm install -g ngrok
+
+# Expose your local backend for webhooks
+ngrok http 3001
+
+# Use the NGROK URL in your Creem webhook settings
 ```
 
 ### Start Mobile App
@@ -145,10 +171,11 @@ expo build:ios
 ## 8. Monitoring and Analytics
 
 
-### Stripe Dashboard
+### Creem Dashboard
 - Monitor payment success rates
 - Set up alerts for failed payments
 - Configure subscription management
+- Track product performance
 
 ### Supabase Dashboard
 - Monitor database performance

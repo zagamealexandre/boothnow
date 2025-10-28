@@ -12,11 +12,12 @@ interface PaymentSetupProps {
 }
 
 export default function PaymentSetup({ onSetupComplete, clerkUser, userProfile }: PaymentSetupProps) {
-  const { user } = useAuth();
+  const { getToken } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
   const [paymentStatus, setPaymentStatus] = useState<{
     isSetup: boolean;
     paymentType?: string;
@@ -41,7 +42,7 @@ export default function PaymentSetup({ onSetupComplete, clerkUser, userProfile }
       
       // Call backend to check if user has payment method setup
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const token = await user?.getToken();
+      const token = await getToken();
       console.log('🔍 PaymentSetup - token:', token ? 'Present' : 'Missing');
       
       const response = await fetch(`${baseUrl}/api/payments/payment-status`, {
@@ -60,10 +61,17 @@ export default function PaymentSetup({ onSetupComplete, clerkUser, userProfile }
         console.log('🔍 PaymentSetup - payment status response:', data);
         
         // If user not found, try to create them
-        if (data.message === 'User not found' && userProfile) {
-          console.log('🔍 PaymentSetup - user not found in database, creating user...');
+        if (data.message === 'User not found' && userProfile && retryCount < 3) {
+          console.log(`🔍 PaymentSetup - user not found in database, retrying in 2 seconds... (attempt ${retryCount + 1}/3)`);
           // The user should already be created by the Dashboard component
-          // If we're here, there might be a timing issue
+          // If we're here, there might be a timing issue - retry after a delay
+          setRetryCount(prev => prev + 1);
+          setTimeout(() => {
+            checkPaymentStatus();
+          }, 2000);
+          return;
+        } else if (data.message === 'User not found' && retryCount >= 3) {
+          console.log('🔍 PaymentSetup - user not found after 3 retries, giving up');
           setPaymentStatus({
             isSetup: false
           });
@@ -97,16 +105,15 @@ export default function PaymentSetup({ onSetupComplete, clerkUser, userProfile }
 
   const handleSetupPayment = async () => {
     // Debug: Log user objects to understand the structure
-    console.log('🔍 PaymentSetup - user object:', user);
     console.log('🔍 PaymentSetup - clerkUser prop:', clerkUser);
     
     // Try to get email from various possible locations
-    let userEmail = user?.emailAddresses?.[0]?.emailAddress;
+    let userEmail = clerkUser?.emailAddresses?.[0]?.emailAddress;
     if (!userEmail) {
-      userEmail = user?.primaryEmailAddress?.emailAddress;
+      userEmail = clerkUser?.primaryEmailAddress?.emailAddress;
     }
     if (!userEmail) {
-      userEmail = user?.email;
+      userEmail = clerkUser?.email;
     }
     
     // Also try from clerkUser prop
@@ -130,9 +137,7 @@ export default function PaymentSetup({ onSetupComplete, clerkUser, userProfile }
 
       // Get user name from various sources
       let userName = 'BoothNow User';
-      if (user?.firstName || user?.lastName) {
-        userName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-      } else if (clerkUser?.firstName || clerkUser?.lastName) {
+      if (clerkUser?.firstName || clerkUser?.lastName) {
         userName = `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim();
       }
 

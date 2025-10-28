@@ -610,7 +610,14 @@ class UserService {
       // Try clerk_user_id first, fallback to user_id if needed
       let { data: sessions, error } = await supabase
         .from('sessions')
-        .select('*')
+        .select(`
+          *,
+          booths (
+            name,
+            address,
+            partner
+          )
+        `)
         .eq('clerk_user_id', clerkUserId) // Use clerk_user_id field
         .order('created_at', { ascending: false })
         .limit(limit)
@@ -630,7 +637,14 @@ class UserService {
           console.log('🔍 UserService - getUserSessionHistory: Found user by clerk_user_id, looking up sessions by user_id:', user.id)
           const { data: sessionsByUserId, error: sessionsByUserIdError } = await supabase
             .from('sessions')
-            .select('*')
+            .select(`
+              *,
+              booths (
+                name,
+                address,
+                partner
+              )
+            `)
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
             .limit(limit)
@@ -652,7 +666,14 @@ class UserService {
           console.log('🔍 UserService - getUserSessionHistory: Found user by clerk_user_id, looking up sessions by user_id:', user.id)
           const { data: sessionsByUserId, error: sessionsByUserIdError } = await supabase
             .from('sessions')
-            .select('*')
+            .select(`
+              *,
+              booths (
+                name,
+                address,
+                partner
+              )
+            `)
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
             .limit(limit)
@@ -676,7 +697,14 @@ class UserService {
           console.log('🔍 UserService - getUserSessionHistory: Found user, trying sessions by user_id:', user.id)
           const { data: sessionsByUserId, error: sessionsByUserIdError } = await supabase
             .from('sessions')
-            .select('*')
+            .select(`
+              *,
+              booths (
+                name,
+                address,
+                partner
+              )
+            `)
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
             .limit(limit)
@@ -701,8 +729,8 @@ class UserService {
       
       const sessionHistory = sessions.map(session => ({
         id: session.id,
-        booth_name: 'Booth', // Will be updated with actual booth name if needed
-        booth_address: 'Address', // Will be updated with actual address if needed
+        booth_name: session.booths?.name || `${session.booths?.partner || '7-Eleven'} Booth`,
+        booth_address: session.booths?.address || 'Address not available',
         start_time: session.start_time,
         end_time: session.end_time,
         duration_minutes: session.total_minutes,
@@ -868,8 +896,8 @@ class UserService {
       // Process sessions - use data from session if available, otherwise fetch from booth
       const sessionsWithBoothDetails = await Promise.all(
         sessions?.map(async (session) => {
-          let boothName = session.booth_name || 'Booth'
-          let boothAddress = session.booth_address || 'Address'
+          let boothName = session.booth_name || '7-Eleven Booth'
+          let boothAddress = session.booth_address || 'Address not available'
           let costPerMinute = session.cost_per_minute || 0.50
           let maxDuration = 120 // Default max duration
           
@@ -948,8 +976,8 @@ class UserService {
           start_time: new Date().toISOString(),
           status: 'active',
           cost_per_minute: booth.cost_per_minute || 0.50,
-          booth_name: booth.name || 'Booth',
-          booth_address: booth.address || 'Address'
+          booth_name: booth.name || '7-Eleven Booth',
+          booth_address: booth.address || 'Address not available'
         })
         .select(`
           id,
@@ -965,8 +993,8 @@ class UserService {
 
       return {
         id: session.id,
-        booth_name: booth.name || 'Booth',
-        booth_address: booth.address || 'Address',
+        booth_name: booth.name || '7-Eleven Booth',
+        booth_address: booth.address || 'Address not available',
         start_time: session.start_time,
         plan_type: 'pay_per_minute',
             max_duration_minutes: booth.max_duration || 60, // 1 hour max for pay-per-minute

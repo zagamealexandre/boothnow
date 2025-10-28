@@ -83,7 +83,14 @@ export default function ProfileTab({
   });
   
   // Reward states
-  const [userData, setUserData] = useState(mockUserData);
+  const [userData, setUserData] = useState({
+    availablePoints: 0,
+    memberTier: "Bronze",
+    sessionsCompleted: 0,
+    rewardsUsed: 0,
+    myRewards: [],
+    usageHistory: []
+  });
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [userRewards, setUserRewards] = useState<UserReward[]>([]);
   const [usageHistory, setUsageHistory] = useState<RewardUsageHistory[]>([]);
@@ -670,6 +677,11 @@ export default function ProfileTab({
                     <div className="text-xs text-gray-500">
                       {new Date(session.start_time).toLocaleDateString()}
                     </div>
+                    {session.cost && (
+                      <div className="text-xs font-medium text-green-600 mt-1">
+                        ${session.cost.toFixed(2)}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

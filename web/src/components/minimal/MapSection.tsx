@@ -70,6 +70,81 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
   const [booths, setBooths] = useState<EnhancedBooth[]>([])
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [mapReady, setMapReady] = useState(false)
+  
+  // Status-based booth icons with colors and animations
+  const getBoothIcon = (status: string, isPulsing: boolean = false) => {
+    const colors = {
+      available: '#27AE60', // Green (BoothNow brand)
+      busy: '#F1C40F',      // Yellow
+      prebooked: '#E74C3C', // Red
+      maintenance: '#BDC3C7' // Gray
+    }
+    
+    const icons = {
+      available: 'circle',
+      busy: 'clock',
+      prebooked: 'lock',
+      maintenance: 'wrench'
+    }
+
+    const color = colors[status as keyof typeof colors] || '#2E6A9C'
+    const icon = icons[status as keyof typeof icons] || 'help-circle'
+    const opacity = status === 'maintenance' ? '0.6' : '1'
+    
+    // Add pulsing animation for available booths
+    const pulseAnimation = isPulsing && status === 'available' ? `
+      <animate attributeName="opacity" values="1;0.7;1" dur="2s" repeatCount="indefinite"/>
+    ` : ''
+
+    return {
+      url: 'data:image/svg+xml;utf8,' +
+        encodeURIComponent(
+          `<svg width="32" height="40" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.3)"/>
+              </filter>
+            </defs>
+            <g opacity="${opacity}">
+              <rect x="8" y="6" width="16" height="26" rx="4" fill="${color}" stroke="white" stroke-width="3" filter="url(#shadow)">
+                ${pulseAnimation}
+              </rect>
+              <circle cx="16" cy="36" r="4" fill="${color}" stroke="white" stroke-width="3">
+                ${pulseAnimation}
+              </circle>
+              <text x="16" y="20" text-anchor="middle" fill="white" font-size="12" font-family="Arial">${icon === 'circle' ? '●' : icon === 'clock' ? '🕐' : icon === 'lock' ? '🔒' : '🔧'}</text>
+            </g>
+          </svg>`
+        ),
+      scaledSize: new google.maps.Size(32, 40),
+      anchor: new google.maps.Point(16, 40),
+    }
+  }
+
+  // Enhanced info card renderer using React component
+  const renderBoothCard = (booth: EnhancedBooth) => {
+    const infoWindowContent = document.createElement('div')
+    const root = createRoot(infoWindowContent)
+
+    root.render(
+      <BoothInfoCard
+        booth={booth}
+        userLocation={userLocation}
+        handleBoothAction={(boothId, action) => handleBoothAction(boothId, action, booths, setBooths)}
+        dist={(a: google.maps.LatLngLiteral, b: google.maps.LatLngLiteral) => {
+          const R = 6371000
+          const dLat = ((b.lat - a.lat) * Math.PI) / 180
+          const dLon = ((b.lng - a.lng) * Math.PI) / 180
+          const a1 = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2)
+          const c = 2 * Math.atan2(Math.sqrt(a1), Math.sqrt(1 - a1))
+          return R * c
+        }}
+      />
+    )
+
+    return infoWindowContent
+  }
   
   // Use the shared booth actions hook
   const {
@@ -333,6 +408,10 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
       
       mapInstanceRef.current = map
       map.setOptions({ zoomControl: true, fullscreenControl: false, mapTypeControl: false, streetViewControl: false })
+      
+      // Mark map as ready
+      setMapReady(true)
+      console.log('✅ MapSection: Map initialized and ready')
 
       // Compute distance in meters
       const dist = (a: google.maps.LatLngLiteral, b: google.maps.LatLngLiteral) => {
@@ -376,72 +455,6 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
       // Expose locate function globally
       ;(window as any).recenterMap = locate
 
-      // Status-based booth icons with colors and animations
-      const getBoothIcon = (status: string, isPulsing: boolean = false) => {
-        const colors = {
-          available: '#27AE60', // Green (BoothNow brand)
-          busy: '#F1C40F',      // Yellow
-          prebooked: '#E74C3C', // Red
-          maintenance: '#BDC3C7' // Gray
-        }
-        
-        const icons = {
-          available: 'circle',
-          busy: 'clock',
-          prebooked: 'lock',
-          maintenance: 'wrench'
-        }
-
-        const color = colors[status as keyof typeof colors] || '#2E6A9C'
-        const icon = icons[status as keyof typeof icons] || 'help-circle'
-        const opacity = status === 'maintenance' ? '0.6' : '1'
-        
-        // Add pulsing animation for available booths
-        const pulseAnimation = isPulsing && status === 'available' ? `
-          <animate attributeName="opacity" values="1;0.7;1" dur="2s" repeatCount="indefinite"/>
-        ` : ''
-
-        return {
-          url: 'data:image/svg+xml;utf8,' +
-            encodeURIComponent(
-              `<svg width="32" height="40" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-                    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.3)"/>
-                  </filter>
-                </defs>
-                <g opacity="${opacity}">
-                  <rect x="8" y="6" width="16" height="26" rx="4" fill="${color}" stroke="white" stroke-width="3" filter="url(#shadow)">
-                    ${pulseAnimation}
-                  </rect>
-                  <circle cx="16" cy="36" r="4" fill="${color}" stroke="white" stroke-width="3">
-                    ${pulseAnimation}
-                  </circle>
-                  <text x="16" y="20" text-anchor="middle" fill="white" font-size="12" font-family="Arial">${icon === 'circle' ? '●' : icon === 'clock' ? '🕐' : icon === 'lock' ? '🔒' : '🔧'}</text>
-                </g>
-              </svg>`
-            ),
-          scaledSize: new google.maps.Size(32, 40),
-          anchor: new google.maps.Point(16, 40),
-        }
-      }
-
-      // Enhanced info card renderer using React component
-      const renderBoothCard = (booth: EnhancedBooth) => {
-        const infoWindowContent = document.createElement('div')
-        const root = createRoot(infoWindowContent)
-
-        root.render(
-          <BoothInfoCard
-            booth={booth}
-            userLocation={userLocation}
-            handleBoothAction={(boothId, action) => handleBoothAction(boothId, action, booths, setBooths)}
-            dist={dist}
-          />
-        )
-
-        return infoWindowContent
-      }
 
       // Add custom CSS to remove InfoWindow default styling
       const style = document.createElement('style')
@@ -485,59 +498,7 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
       // Make handleBoothAction globally accessible for the React component
       ;(window as any).handleBoothAction = (boothId: string, action: string) => handleBoothAction(boothId, action, booths, setBooths)
 
-      // Add markers for booths with enhanced animations
-      const addBoothMarkers = (boothsToShow: EnhancedBooth[]) => {
-        // Clear existing markers
-        if ((window as any).boothMarkers) {
-          (window as any).boothMarkers.forEach((marker: google.maps.Marker) => marker.setMap(null))
-        }
-        
-        const markers: google.maps.Marker[] = []
-        
-        boothsToShow.forEach((booth) => {
-          // Check if booth is almost available (within 10 minutes)
-          const isAlmostAvailable = booth.status === 'busy' && booth.timeRemaining && booth.timeRemaining <= 10
-          const isPulsing = booth.status === 'available' || isAlmostAvailable
-          
-          const marker = new google.maps.Marker({
-            position: { lat: booth.lat, lng: booth.lng },
-            map,
-            title: booth.name,
-            icon: getBoothIcon(booth.status, isPulsing),
-            animation: google.maps.Animation.DROP,
-          })
-
-          marker.addListener('click', () => {
-            // Close any existing info window first
-            info.close()
-            
-            // Add click animation
-            marker.setAnimation(google.maps.Animation.BOUNCE)
-            setTimeout(() => marker.setAnimation(null), 600)
-            
-            // Open new info window
-            info.setContent(renderBoothCard(booth))
-            info.open({ map, anchor: marker })
-          })
-
-          // Add hover effect with enhanced animation
-          marker.addListener('mouseover', () => {
-            marker.setAnimation(google.maps.Animation.BOUNCE)
-            setTimeout(() => marker.setAnimation(null), 1000)
-          })
-
-          markers.push(marker)
-        })
-        
-        ;(window as any).boothMarkers = markers
-      }
-
-      // Filter booths based on selected status
-      const filteredBooths = selectedStatus === 'all' 
-        ? booths 
-        : booths.filter(booth => booth.status === selectedStatus)
-      
-      addBoothMarkers(filteredBooths)
+      // Markers will be added by the separate effect when map is ready
     }
 
     if (existing) {
@@ -554,6 +515,78 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
     script.addEventListener('load', init, { once: true })
     document.head.appendChild(script)
   }, [booths, selectedStatus, userLocation])
+
+  // Effect to add markers when map becomes ready and booths are available
+  useEffect(() => {
+    if (mapReady && mapInstanceRef.current && booths.length > 0) {
+      console.log('🗺️ MapSection: Adding markers to map, booths count:', booths.length)
+      
+      // Clear existing markers
+      if ((window as any).boothMarkers) {
+        (window as any).boothMarkers.forEach((marker: google.maps.Marker) => marker.setMap(null))
+      }
+      
+      // Add new markers
+      const markers: google.maps.Marker[] = []
+      
+      // Filter booths based on selected status
+      const filteredBooths = selectedStatus === 'all' 
+        ? booths 
+        : booths.filter(booth => booth.status === selectedStatus)
+      
+      filteredBooths.forEach((booth) => {
+        // Check if booth is almost available (within 10 minutes)
+        const isAlmostAvailable = booth.status === 'busy' && booth.timeRemaining && booth.timeRemaining <= 10
+        const isPulsing = booth.status === 'available' || isAlmostAvailable
+        
+        const marker = new google.maps.Marker({
+          position: { lat: booth.lat, lng: booth.lng },
+          map: mapInstanceRef.current,
+          title: booth.name,
+          icon: getBoothIcon(booth.status, isPulsing),
+          animation: google.maps.Animation.DROP,
+        })
+
+        marker.addListener('click', () => {
+          // Close any existing info window first
+          if ((window as any).currentInfoWindow) {
+            (window as any).currentInfoWindow.close()
+          }
+          
+          // Add click animation
+          marker.setAnimation(google.maps.Animation.BOUNCE)
+          setTimeout(() => marker.setAnimation(null), 600)
+          
+          // Create new info window
+          const info = new google.maps.InfoWindow({
+            content: renderBoothCard(booth),
+            ariaLabel: 'Booth details',
+            maxWidth: 300,
+            pixelOffset: new google.maps.Size(0, -10)
+          })
+          
+          // Store reference and open
+          ;(window as any).currentInfoWindow = info
+          info.open({ map: mapInstanceRef.current, anchor: marker })
+        })
+
+        // Add hover effect with enhanced animation
+        marker.addListener('mouseover', () => {
+          marker.setAnimation(google.maps.Animation.BOUNCE)
+          setTimeout(() => marker.setAnimation(null), 1000)
+        })
+
+        markers.push(marker)
+      })
+      
+      ;(window as any).boothMarkers = markers
+      console.log('✅ MapSection: Markers added successfully, count:', markers.length)
+    } else if (!mapReady) {
+      console.log('⏳ MapSection: Map not ready yet, waiting...')
+    } else if (!booths.length) {
+      console.log('⏳ MapSection: No booths loaded yet, waiting...')
+    }
+  }, [mapReady, booths, selectedStatus, userLocation])
 
   // Auto-refresh booth status every 60 seconds with enhanced animations
   useEffect(() => {

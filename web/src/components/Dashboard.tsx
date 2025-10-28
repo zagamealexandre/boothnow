@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { boothService, Booth } from '../services/boothService'
 import { userService, UserProfile, UserStats, SessionHistory, ActiveSession as ActiveSessionType } from '../services/userService'
 import { bookingsService, Booking, ActiveBooking } from '../services/bookingsService'
+import { usePointsEarning } from '../hooks/usePointsEarning'
 import { MapSection } from './minimal/MapSection'
 import MobileMapSection from './MobileMapSection'
 import ProductCatalog from './ProductCatalog'
@@ -79,6 +80,7 @@ interface DashboardProps {
 
 export default function Dashboard({ clerkUser }: DashboardProps) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+  const { awardBoothSessionPoints, awardAdvanceBookingPoints } = usePointsEarning()
   
   if (!apiKey) {
     console.error('Google Maps API key not found. Please set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in your environment variables.')
@@ -454,6 +456,13 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
       console.log('🔍 Dashboard - End session result:', success)
       
       if (success) {
+        // Award points for completing a booth session
+        try {
+          await awardBoothSessionPoints(sessionId)
+        } catch (error) {
+          console.error('❌ Dashboard - Error awarding session points:', error)
+        }
+
         // Always remove from UI immediately (works for both mock and real data)
         setActiveSessions(prev => {
           const updated = prev.filter(session => session.id !== sessionId)

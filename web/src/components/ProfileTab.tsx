@@ -36,7 +36,9 @@ import { SignOutButton } from '@clerk/nextjs';
 import { useAuth } from '@clerk/nextjs';
 import { UserProfile, UserStats, SessionHistory } from '../services/userService';
 import { rewardsService, Reward, UserReward, RewardUsageHistory, UserPoints } from '../services/rewardsService';
+import { pointsService } from '../services/pointsService';
 import { mockRewards, mockUserData, iconMap } from '../data/rewardsData';
+import PointsEarningDemo from './PointsEarningDemo';
 
 interface Subscription {
   id: string;
@@ -95,6 +97,28 @@ export default function ProfileTab({
   const [loading, setLoading] = useState(false);
   const qrCodeRef = useRef<HTMLCanvasElement>(null);
 
+  // Initialize user points on first load
+  useEffect(() => {
+    const initializePoints = async () => {
+      if (!userId) return;
+
+      try {
+        // Try to get user points first
+        const userPointsData = await rewardsService.getUserPoints(userId);
+        
+        // If no points exist (returns zeroed object), initialize them
+        if (userPointsData && userPointsData.points === 0 && userPointsData.total_earned === 0) {
+          console.log('🔧 ProfileTab: No points found, initializing with welcome bonus');
+          await pointsService.initializeUserPoints(userId);
+        }
+      } catch (error) {
+        console.error('❌ ProfileTab: Error initializing points:', error);
+      }
+    };
+
+    initializePoints();
+  }, [userId]);
+
   // Load rewards data when rewards section is opened
   useEffect(() => {
     const loadRewardsData = async () => {
@@ -127,8 +151,8 @@ export default function ProfileTab({
               id: ur.reward_id,
               title: ur.reward?.title || 'Unknown Reward',
               partner: ur.reward?.partner || 'Unknown',
-              expiresAt: ur.used_at ? new Date(ur.used_at).toISOString().split('T')[0] : 'Never',
-              status: ur.is_used ? 'used' : 'available'
+              expiresAt: ur.expires_at ? new Date(ur.expires_at).toISOString().split('T')[0] : 'Never',
+              status: ur.status
             })),
             usageHistory: usageHistoryData.map(uh => ({
               id: uh.reward_id.toString(),
@@ -223,8 +247,19 @@ export default function ProfileTab({
       return;
     }
 
+    // Prevent multiple simultaneous claims
+    if (loading) {
+      console.log('⚠️ ProfileTab: Already processing a claim, ignoring duplicate');
+      return;
+    }
+
+    console.log('🔧 ProfileTab: handleClaimReward called for reward:', rewardId, 'type:', typeof rewardId);
+
     const reward = rewards.find(r => r.id === rewardId);
-    if (!reward) return;
+    if (!reward) {
+      console.log('❌ ProfileTab: Reward not found for ID:', rewardId);
+      return;
+    }
 
     // Check if reward is currently available (time-based validation)
     if (!rewardsService.isRewardTimeActive(reward.time_restriction)) {
@@ -243,6 +278,8 @@ export default function ProfileTab({
     }
 
     try {
+      setLoading(true);
+      console.log('🔧 ProfileTab: Calling claimReward for user:', userId, 'reward:', rewardId);
       const result = await rewardsService.claimReward(userId, rewardId);
       
       if (result.success) {
@@ -264,7 +301,7 @@ export default function ProfileTab({
             title: ur.reward?.title || 'Unknown Reward',
             partner: ur.reward?.partner || 'Unknown',
             expiresAt: ur.used_at ? new Date(ur.used_at).toISOString().split('T')[0] : 'Never',
-            status: ur.is_used ? 'used' : 'available'
+            status: ur.status
           }))
         }));
         
@@ -281,6 +318,8 @@ export default function ProfileTab({
       setToastMessage('An error occurred while claiming the reward!');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -293,10 +332,15 @@ export default function ProfileTab({
     }
 
     const rewardToUse = userRewards.find(r => r.reward_id === rewardId);
+    
     if (rewardToUse && rewardToUse.reward) {
       setQrCodeReward(rewardToUse.reward);
       await generateQRCode(rewardToUse.reward);
       setShowQrModal(true);
+    } else {
+      setToastMessage('Reward not found or not available!');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     }
   };
 
@@ -333,7 +377,7 @@ export default function ProfileTab({
             title: ur.reward?.title || 'Unknown Reward',
             partner: ur.reward?.partner || 'Unknown',
             expiresAt: ur.used_at ? new Date(ur.used_at).toISOString().split('T')[0] : 'Never',
-            status: ur.is_used ? 'used' : 'available'
+            status: ur.status
           })),
           usageHistory: usageHistoryData.map(uh => ({
             id: uh.reward_id,
@@ -1108,13 +1152,16 @@ export default function ProfileTab({
 
               {/* Available Rewards Tab */}
               {rewardsTab === 'available' && (
-                <div className="space-y-4">
-                  <h5 className="font-semibold text-gray-900">Available Rewards</h5>
+                <div className="space-y-6">
+                  <PointsEarningDemo />
+                  
+                  <div className="space-y-4">
+                    <h5 className="font-semibold text-gray-900">Available Rewards</h5>
                   <div className="grid gap-4">
                   {mockRewards.map((reward) => {
                     const IconComponent = reward.icon;
                     const isTimeActive = reward.isActive ? reward.isActive() : true;
-                    const isClaimed = userData.myRewards.some(r => r.id === reward.id);
+                    const isClaimed = userRewards.some(ur => ur.reward_id === reward.id && ur.status === 'active');
                     
                     return (
                       <div key={reward.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
@@ -1154,20 +1201,21 @@ export default function ProfileTab({
                           ) : (
                             <button 
                               onClick={() => handleClaimReward(reward.id)}
-                              disabled={reward.isActive && !reward.isActive() || reward.points_required > userData.availablePoints}
+                              disabled={loading || (reward.isActive && !reward.isActive()) || reward.points_required > userData.availablePoints}
                               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                reward.isActive && !reward.isActive() || reward.points_required > userData.availablePoints
+                                loading || (reward.isActive && !reward.isActive()) || reward.points_required > userData.availablePoints
                                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                   : 'bg-orange-600 hover:bg-orange-700 text-white'
                               }`}
                             >
-                              Claim
+                              {loading ? 'Claiming...' : 'Claim'}
                             </button>
                           )}
                         </div>
                       </div>
                     );
                   })}
+                  </div>
                   </div>
                 </div>
               )}

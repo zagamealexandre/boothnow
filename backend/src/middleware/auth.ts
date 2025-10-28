@@ -18,7 +18,8 @@ export const authMiddleware = async (
       return res.status(401).json({ error: 'No authentication token provided' });
     }
 
-    const payload = await verifyToken(token, {
+    // Clerk payload can vary; use a broad type and guard accesses
+    const payload: any = await verifyToken(token, {
       secretKey: process.env.CLERK_SECRET_KEY!,
       issuer: 'https://clerk.boothnow.com'
     });
@@ -35,18 +36,20 @@ export const authMiddleware = async (
     
     // Extract email from various possible locations in the payload
     let userEmail = null;
-    if (payload.email) {
+    if (payload?.email) {
       userEmail = payload.email;
-    } else if (payload.email_address) {
+    } else if (payload?.email_address) {
       userEmail = payload.email_address;
-    } else if (payload.emailAddresses && payload.emailAddresses.length > 0) {
-      userEmail = payload.emailAddresses[0].emailAddress || payload.emailAddresses[0];
-    } else if (payload.primary_email_address) {
+    } else if (Array.isArray(payload?.emailAddresses) && payload.emailAddresses.length > 0) {
+      const first = payload.emailAddresses[0];
+      userEmail = first?.emailAddress ?? first?.email_address ?? first ?? null;
+    } else if (payload?.primary_email_address) {
       userEmail = payload.primary_email_address;
     }
     
     // Add email to the user object for easy access
     if (userEmail) {
+      req.user = req.user || {};
       req.user.email = userEmail;
       console.log('✅ Extracted email from payload:', userEmail);
     } else {

@@ -42,10 +42,20 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // CORS configuration
+const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
+const allowedOrigins = allowedOriginsEnv
+  ? allowedOriginsEnv.split(',').map(o => o.trim()).filter(Boolean)
+  : (process.env.NODE_ENV === 'production'
+      ? ['https://kubo-seven.vercel.app']
+      : ['http://localhost:3000', 'http://localhost:3001']);
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://boothnow.com', 'https://app.boothnow.com']
-    : ['http://localhost:3000', 'http://localhost:3001'],
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true
 }));
 

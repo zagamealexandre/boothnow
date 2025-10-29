@@ -114,7 +114,7 @@ class BookingsService {
           // Fetch booth details for each session
           let boothName = 'Booth'
           let boothAddress = 'Address'
-          let boothCostPerMinute = 0.50 // Default to 50 cents
+          let boothCostPerMinute = 5.00 // Default to 5 SEK per minute
           
           try {
             const { data: booth, error: boothError } = await supabase
@@ -126,7 +126,7 @@ class BookingsService {
             if (booth && !boothError) {
               boothName = booth.name || 'Booth'
               boothAddress = booth.address || 'Address'
-              boothCostPerMinute = booth.cost_per_minute || 0.50
+              boothCostPerMinute = booth.cost_per_minute || 5.00
             }
           } catch (error) {
             console.warn('Failed to fetch booth details for session:', session.id, error)
@@ -221,7 +221,7 @@ class BookingsService {
           timeRemaining = Math.ceil((endTime.getTime() - now.getTime()) / 60000) // minutes
           // Calculate cost dynamically from elapsed time using correct cost_per_minute
           const elapsedMinutes = (now.getTime() - startTime.getTime()) / (1000 * 60)
-          const costPerMinute = 0.50 // Always use 0.50 (ignore database value)
+          const costPerMinute = 5.00 // Always use 5.00 SEK per minute
           currentCost = elapsedMinutes * costPerMinute
         }
         

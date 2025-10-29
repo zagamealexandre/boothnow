@@ -2,20 +2,20 @@
 export const PRICING_CONFIG = {
   // Pay-per-minute pricing
   PAY_PER_MINUTE: {
-    costPerMinute: 0.50, // €0.50 per minute
+    costPerMinute: 5.00, // 5 SEK per minute
     maxDurationMinutes: 60, // 1 hour maximum
     maxSessionsPerDay: null, // No limit
     planName: 'Pay Per Minute',
-    planDescription: '€0.50 per minute, 1 hour max per session, unlimited sessions'
+    planDescription: '5 SEK per minute, 1 hour max per session, unlimited sessions'
   },
   
   // Membership pricing
   MEMBERSHIP: {
-    monthlyCost: 29.00, // €29 per month
+    monthlyCost: 299.00, // 299 SEK per month
     maxDurationMinutes: 90, // 1.5 hours maximum
     maxSessionsPerDay: 3, // 3 sessions per day
     planName: 'Membership',
-    planDescription: '€29/month, 1.5 hours max per session, 3 sessions per day'
+    planDescription: '299 SEK/month, 1.5 hours max per session, 3 sessions per day'
   }
 } as const
 
@@ -53,6 +53,6 @@ export function calculateSessionCost(
 export function formatPricingDisplay(planType: 'pay_per_minute' | 'subscription'): string {
   const pricing = getPricingInfo(planType)
   return planType === 'pay_per_minute' 
-    ? `${pricing.planName} (€${'costPerMinute' in pricing ? pricing.costPerMinute : 0}/min)`
-    : `${pricing.planName} (€${'monthlyCost' in pricing ? pricing.monthlyCost : 0}/month)`
+    ? `${pricing.planName} (${'costPerMinute' in pricing ? pricing.costPerMinute : 0} SEK/min)`
+    : `${pricing.planName} (${'monthlyCost' in pricing ? pricing.monthlyCost : 0} SEK/month)`
 }

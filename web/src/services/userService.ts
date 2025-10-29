@@ -88,7 +88,6 @@ class UserService {
     try {
       // Always try real Supabase first - no mock fallbacks
 
-      console.log('🔍 UserService - getUserProfile: Looking up user with clerk_user_id:', clerkUserId);
 
       // First try to find by clerk_user_id
       let { data, error } = await supabase
@@ -97,7 +96,6 @@ class UserService {
         .eq('clerk_user_id', clerkUserId)
         .maybeSingle()
 
-      console.log('🔍 UserService - getUserProfile: Direct lookup result:', { data: !!data, error });
 
       // No fallback: return null so caller can initialize profile correctly
 
@@ -107,11 +105,9 @@ class UserService {
       }
 
       if (!data) {
-        console.log('🔍 UserService - getUserProfile: No user found, returning null');
         return null
       }
 
-      console.log('🔍 UserService - getUserProfile: Returning user data:', { id: data.id, email: data.email, clerk_user_id: data.clerk_user_id });
       return data
     } catch (error) {
       console.error('🔍 UserService - getUserProfile: Exception:', error)
@@ -137,9 +133,7 @@ class UserService {
         userEmail = 'user@example.com';
       }
       
-      console.log('🔍 UserService - extracted email:', userEmail);
 
-      console.log('🔍 UserService - checking for existing user:', { clerkUserId, userEmail });
       
       // Check if user already exists by email first (more reliable)
       const { data: existingUser, error: checkError } = await supabase
@@ -148,7 +142,6 @@ class UserService {
         .eq('email', userEmail)
         .maybeSingle()
       
-      console.log('🔍 UserService - initializeUserProfile: existing user check result:', { existingUser, checkError });
       
       // If there's an error in the check, log it but continue
       if (checkError) {
@@ -158,7 +151,6 @@ class UserService {
       if (existingUser) {
         // Update existing user with clerk_user_id if missing or different
         if (!existingUser.clerk_user_id || existingUser.clerk_user_id !== clerkUserId) {
-          console.log('🔍 UserService - initializeUserProfile: updating clerk_user_id from', existingUser.clerk_user_id, 'to', clerkUserId);
           const { error: updateError } = await supabase
             .from('users')
             .update({ clerk_user_id: clerkUserId })
@@ -167,14 +159,12 @@ class UserService {
           if (updateError) {
             console.error('🔍 UserService - initializeUserProfile: error updating clerk_user_id:', updateError);
           } else {
-            console.log('🔍 UserService - initializeUserProfile: successfully updated clerk_user_id');
             // Verify the update worked
             const { data: verifyUser } = await supabase
               .from('users')
               .select('clerk_user_id')
               .eq('id', existingUser.id)
               .maybeSingle()
-            console.log('🔍 UserService - initializeUserProfile: verification - clerk_user_id is now:', verifyUser?.clerk_user_id);
           }
         }
         return await this.getUserProfile(clerkUserId)
@@ -192,7 +182,6 @@ class UserService {
         updated_at: new Date().toISOString()
       }
       
-      console.log('🔍 UserService - creating user with data:', userData);
 
       // Try insert first
       let { data, error } = await supabase
@@ -201,11 +190,9 @@ class UserService {
         .select()
         .maybeSingle()
 
-      console.log('🔍 UserService - insert result:', { data, error });
 
       // If insert fails due to conflict, try to get the existing user
       if (error && error.code === '23505') { // Unique constraint violation
-        console.log('🔍 UserService - user already exists, fetching existing user...');
         const { data: existingUserAfterConflict } = await supabase
           .from('users')
           .select('*')
@@ -215,7 +202,6 @@ class UserService {
         if (existingUserAfterConflict) {
           // Update the existing user with clerk_user_id if missing or different
           if (!existingUserAfterConflict.clerk_user_id || existingUserAfterConflict.clerk_user_id !== clerkUserId) {
-            console.log('🔍 UserService - updating existing user clerk_user_id from', existingUserAfterConflict.clerk_user_id, 'to', clerkUserId);
             await supabase
               .from('users')
               .update({ clerk_user_id: clerkUserId })
@@ -232,7 +218,6 @@ class UserService {
         return this.getClerkUserProfile(clerkUserId, clerkUserData)
       }
 
-      console.log('🔍 UserService - user created successfully:', data);
       return data
     } catch (error) {
       console.error('Error in initializeUserProfile:', error)
@@ -243,7 +228,6 @@ class UserService {
   // Direct database update function (bypasses some constraints)
   async directUpdateClerkId(clerkUserId: string, userEmail: string): Promise<boolean> {
     try {
-      console.log('🔍 UserService - DIRECT: Attempting direct update for user:', userEmail);
       
       // Use a raw SQL update if possible, or try multiple approaches
       const { data: user, error: findError } = await supabase
@@ -257,7 +241,6 @@ class UserService {
         return false;
       }
 
-      console.log('🔍 UserService - DIRECT: Found user:', user);
 
       // Try multiple update approaches
       const updatePromises = [
@@ -289,11 +272,9 @@ class UserService {
       for (let i = 0; i < updatePromises.length; i++) {
         const { error } = await updatePromises[i];
         if (!error) {
-          console.log(`🔍 UserService - DIRECT: Update approach ${i + 1} succeeded`);
           success = true;
           break;
         } else {
-          console.log(`🔍 UserService - DIRECT: Update approach ${i + 1} failed:`, error);
         }
       }
 
@@ -309,7 +290,6 @@ class UserService {
         .eq('email', userEmail)
         .maybeSingle();
 
-      console.log('🔍 UserService - DIRECT: Final verification - clerk_user_id is:', verifyUser?.clerk_user_id);
       return verifyUser?.clerk_user_id === clerkUserId;
     } catch (error) {
       console.error('🔍 UserService - DIRECT: Exception in direct update:', error);
@@ -320,7 +300,6 @@ class UserService {
   // Fix function to update existing user's clerk_user_id
   async fixUserClerkId(clerkUserId: string, userEmail: string): Promise<boolean> {
     try {
-      console.log('🔍 UserService - FIX: Attempting to fix clerk_user_id for user:', userEmail);
       
       // Find user by email
       const { data: user, error: findError } = await supabase
@@ -334,7 +313,6 @@ class UserService {
         return false;
       }
 
-      console.log('🔍 UserService - FIX: Found user:', user);
 
       // Update clerk_user_id
       const { error: updateError } = await supabase
@@ -359,8 +337,6 @@ class UserService {
         return false;
       }
 
-      console.log('🔍 UserService - FIX: Successfully updated clerk_user_id to:', clerkUserId);
-      console.log('🔍 UserService - FIX: Verification - clerk_user_id is now:', verifyUser?.clerk_user_id);
       
       return verifyUser?.clerk_user_id === clerkUserId;
     } catch (error) {
@@ -372,7 +348,6 @@ class UserService {
   // Test function to manually create a user (for debugging)
   async testCreateUser(clerkUserId: string, clerkUserData?: any): Promise<boolean> {
     try {
-      console.log('🔍 UserService - TEST: Attempting to create user manually...');
       
       const userData = {
         clerk_user_id: clerkUserId,
@@ -385,7 +360,6 @@ class UserService {
         updated_at: new Date().toISOString()
       };
 
-      console.log('🔍 UserService - TEST: User data:', userData);
 
       const { data, error } = await supabase
         .from('users')
@@ -393,14 +367,12 @@ class UserService {
         .select()
         .maybeSingle();
 
-      console.log('🔍 UserService - TEST: Insert result:', { data, error });
 
       if (error) {
         console.error('🔍 UserService - TEST: Error creating user:', error);
         return false;
       }
 
-      console.log('🔍 UserService - TEST: User created successfully:', data);
       return true;
     } catch (error) {
       console.error('🔍 UserService - TEST: Exception creating user:', error);
@@ -411,7 +383,6 @@ class UserService {
   // Helper function to get user ID with proper lookup
   private async getUserInternalId(clerkUserId: string): Promise<string | null> {
     try {
-      console.log('🔍 UserService - getUserInternalId: Looking up user with clerk_user_id:', clerkUserId);
       
       // First try to find by clerk_user_id
       let { data: user, error } = await supabase
@@ -421,7 +392,6 @@ class UserService {
         .maybeSingle()
 
       if (!error && user) {
-        console.log('🔍 UserService - getUserInternalId: Found user by clerk_user_id:', user.id);
         return user.id;
       }
 
@@ -454,7 +424,6 @@ class UserService {
   async getUserStats(clerkUserId: string): Promise<UserStats> {
     try {
       // Always try real Supabase - no mock fallbacks
-      console.log('🔍 UserService - getUserStats: Looking for sessions with clerk_user_id:', clerkUserId)
 
       // Get total sessions - try clerk_user_id first, fallback to user_id
       let { data: sessions, error: sessionsError } = await supabase
@@ -463,11 +432,9 @@ class UserService {
         .eq('clerk_user_id', clerkUserId) // Use clerk_user_id field
         .eq('status', 'completed')
 
-      console.log('🔍 UserService - getUserStats: Sessions query result:', { sessions, error: sessionsError })
 
       // If clerk_user_id doesn't work, try with user_id (for backward compatibility)
       if (sessionsError && sessionsError.code === '42703') {
-        console.log('🔍 UserService - getUserStats: clerk_user_id field not found, trying user_id lookup...')
         const { data: user } = await supabase
           .from('users')
           .select('id')
@@ -475,7 +442,6 @@ class UserService {
           .maybeSingle()
 
         if (user) {
-          console.log('🔍 UserService - getUserStats: Found user by clerk_user_id, looking up sessions by user_id:', user.id)
           const { data: sessionsByUserId, error: sessionsByUserIdError } = await supabase
             .from('sessions')
             .select('*')
@@ -484,11 +450,9 @@ class UserService {
 
           sessions = sessionsByUserId
           sessionsError = sessionsByUserIdError
-          console.log('🔍 UserService - getUserStats: Sessions by user_id result:', { sessions, error: sessionsByUserIdError })
         }
       } else if (!sessions || sessions.length === 0) {
         // If no sessions found by clerk_user_id, try user_id lookup as fallback
-        console.log('🔍 UserService - getUserStats: No sessions found by clerk_user_id, trying user_id lookup...')
         const { data: user } = await supabase
           .from('users')
           .select('id')
@@ -496,7 +460,6 @@ class UserService {
           .maybeSingle()
 
         if (user) {
-          console.log('🔍 UserService - getUserStats: Found user by clerk_user_id, looking up sessions by user_id:', user.id)
           const { data: sessionsByUserId, error: sessionsByUserIdError } = await supabase
             .from('sessions')
             .select('*')
@@ -505,13 +468,11 @@ class UserService {
 
           sessions = sessionsByUserId
           sessionsError = sessionsByUserIdError
-          console.log('🔍 UserService - getUserStats: Sessions by user_id result:', { sessions, error: sessionsByUserIdError })
         }
       }
 
       // Additional fallback: if still no sessions, try direct user_id lookup
       if ((!sessions || sessions.length === 0) && !sessionsError) {
-        console.log('🔍 UserService - getUserStats: Still no sessions, trying direct user_id lookup...')
         const { data: user } = await supabase
           .from('users')
           .select('id')
@@ -519,7 +480,6 @@ class UserService {
           .maybeSingle()
 
         if (user) {
-          console.log('🔍 UserService - getUserStats: Found user, trying sessions by user_id:', user.id)
           const { data: sessionsByUserId, error: sessionsByUserIdError } = await supabase
             .from('sessions')
             .select('*')
@@ -528,7 +488,6 @@ class UserService {
 
           sessions = sessionsByUserId
           sessionsError = sessionsByUserIdError
-          console.log('🔍 UserService - getUserStats: Final sessions result:', { sessions, error: sessionsByUserIdError })
         }
       }
 
@@ -543,18 +502,12 @@ class UserService {
       }
 
       // Calculate stats
-      console.log('🔍 UserService - getUserStats: Found completed sessions:', sessions?.length || 0)
-      console.log('🔍 UserService - getUserStats: Sessions data:', sessions)
       
       const totalSessions = sessions?.length || 0
       const totalTimeMinutes = sessions?.reduce((sum, session) => sum + (session.total_minutes || 0), 0) || 0
-      const totalSpent = sessions?.reduce((sum, session) => sum + (session.total_cost || 0), 0) || 0
+      const totalSpent = sessions?.reduce((sum, session) => sum + (session.cost || 0), 0) || 0
       
-      console.log('🔍 UserService - getUserStats: Calculated stats:', {
-        totalSessions,
-        totalTimeMinutes,
-        totalSpent
-      })
+
 
       // Get member since date
       // Get user creation date
@@ -566,7 +519,6 @@ class UserService {
 
       // If not found by clerk_user_id, try fallback method
       if (!user && !userError) {
-        console.log('🔍 UserService - user not found for member_since, trying fallback...');
         const { data: allUsers, error: allUsersError } = await supabase
           .from('users')
           .select('created_at')
@@ -574,7 +526,6 @@ class UserService {
         
         if (!allUsersError && allUsers && allUsers.length > 0) {
           user = allUsers[0];
-          console.log('🔍 UserService - found user for member_since by fallback method');
         }
       }
 
@@ -605,7 +556,6 @@ class UserService {
   async getUserSessionHistory(clerkUserId: string, limit: number = 5): Promise<SessionHistory[]> {
     try {
       // Always try real Supabase - no mock fallbacks
-      console.log('🔍 UserService - getUserSessionHistory: Looking for sessions with clerk_user_id:', clerkUserId)
 
       // Try clerk_user_id first, fallback to user_id if needed
       let { data: sessions, error } = await supabase
@@ -622,11 +572,9 @@ class UserService {
         .order('created_at', { ascending: false })
         .limit(limit)
 
-      console.log('🔍 UserService - getUserSessionHistory: Sessions query result:', { sessions, error })
 
       // If clerk_user_id doesn't work, try with user_id (for backward compatibility)
       if (error && error.code === '42703') {
-        console.log('🔍 UserService - getUserSessionHistory: clerk_user_id field not found, trying user_id lookup...')
         const { data: user } = await supabase
           .from('users')
           .select('id')
@@ -634,7 +582,6 @@ class UserService {
           .maybeSingle()
 
         if (user) {
-          console.log('🔍 UserService - getUserSessionHistory: Found user by clerk_user_id, looking up sessions by user_id:', user.id)
           const { data: sessionsByUserId, error: sessionsByUserIdError } = await supabase
             .from('sessions')
             .select(`
@@ -651,11 +598,9 @@ class UserService {
 
           sessions = sessionsByUserId
           error = sessionsByUserIdError
-          console.log('🔍 UserService - getUserSessionHistory: Sessions by user_id result:', { sessions, error: sessionsByUserIdError })
         }
       } else if (!sessions || sessions.length === 0) {
         // If no sessions found by clerk_user_id, try user_id lookup as fallback
-        console.log('🔍 UserService - getUserSessionHistory: No sessions found by clerk_user_id, trying user_id lookup...')
         const { data: user } = await supabase
           .from('users')
           .select('id')
@@ -663,7 +608,6 @@ class UserService {
           .maybeSingle()
 
         if (user) {
-          console.log('🔍 UserService - getUserSessionHistory: Found user by clerk_user_id, looking up sessions by user_id:', user.id)
           const { data: sessionsByUserId, error: sessionsByUserIdError } = await supabase
             .from('sessions')
             .select(`
@@ -680,13 +624,11 @@ class UserService {
 
           sessions = sessionsByUserId
           error = sessionsByUserIdError
-          console.log('🔍 UserService - getUserSessionHistory: Sessions by user_id result:', { sessions, error: sessionsByUserIdError })
         }
       }
 
       // Additional fallback: if still no sessions, try direct user_id lookup
       if ((!sessions || sessions.length === 0) && !error) {
-        console.log('🔍 UserService - getUserSessionHistory: Still no sessions, trying direct user_id lookup...')
         const { data: user } = await supabase
           .from('users')
           .select('id')
@@ -694,7 +636,6 @@ class UserService {
           .maybeSingle()
 
         if (user) {
-          console.log('🔍 UserService - getUserSessionHistory: Found user, trying sessions by user_id:', user.id)
           const { data: sessionsByUserId, error: sessionsByUserIdError } = await supabase
             .from('sessions')
             .select(`
@@ -711,7 +652,6 @@ class UserService {
 
           sessions = sessionsByUserId
           error = sessionsByUserIdError
-          console.log('🔍 UserService - getUserSessionHistory: Final sessions result:', { sessions, error: sessionsByUserIdError })
         }
       }
 
@@ -724,8 +664,6 @@ class UserService {
         return []
       }
 
-      console.log('🔍 UserService - getUserSessionHistory: Processing sessions:', sessions?.length || 0)
-      console.log('🔍 UserService - getUserSessionHistory: Raw sessions data:', sessions)
       
       const sessionHistory = sessions.map(session => ({
         id: session.id,
@@ -734,11 +672,10 @@ class UserService {
         start_time: session.start_time,
         end_time: session.end_time,
         duration_minutes: session.total_minutes,
-        cost: session.total_cost,
+        cost: session.cost,
         status: session.status
       }))
       
-      console.log('🔍 UserService - getUserSessionHistory: Processed session history:', sessionHistory)
 
       return sessionHistory
     } catch (error) {
@@ -864,7 +801,6 @@ class UserService {
 
       // If clerk_user_id doesn't work, try with user_id (for backward compatibility)
       if (error && error.code === '42703') {
-        console.log('🔍 UserService - getActiveSessions: clerk_user_id column not found, trying user_id...');
         const { data: sessionsByUserId, error: userIdError } = await supabase
           .from('sessions')
           .select(`
@@ -898,7 +834,7 @@ class UserService {
         sessions?.map(async (session) => {
           let boothName = session.booth_name || '7-Eleven Booth'
           let boothAddress = session.booth_address || 'Address not available'
-          let costPerMinute = session.cost_per_minute || 0.50
+          let costPerMinute = session.cost_per_minute || 5.00
           let maxDuration = 120 // Default max duration
           
           // If session doesn't have booth details, fetch from booth table
@@ -975,7 +911,7 @@ class UserService {
           reservation_id: reservationId,
           start_time: new Date().toISOString(),
           status: 'active',
-          cost_per_minute: booth.cost_per_minute || 0.50,
+          cost_per_minute: booth.cost_per_minute || 5.00,
           booth_name: booth.name || '7-Eleven Booth',
           booth_address: booth.address || 'Address not available'
         })
@@ -998,7 +934,7 @@ class UserService {
         start_time: session.start_time,
         plan_type: 'pay_per_minute',
             max_duration_minutes: booth.max_duration || 60, // 1 hour max for pay-per-minute
-        cost_per_minute: booth.cost_per_minute || 0.50,
+        cost_per_minute: booth.cost_per_minute || 5.00,
         booth_id: session.booth_id
       }
 
@@ -1013,7 +949,6 @@ class UserService {
     try {
       // Check if this is a mock/test session
       if (sessionId.startsWith('550e8400-') || sessionId.includes('mock') || sessionId.includes('test')) {
-        console.log('Mock/Test session ending:', sessionId)
         return true
       }
 
@@ -1036,7 +971,6 @@ class UserService {
         console.error('Error fetching session for end:', fetchError)
         // If it's a UUID format error, it might be mock data, so return true
         if (fetchError?.code === '22P02') {
-          console.log('UUID format error - likely mock data, simulating success')
           return true
         }
         return false
@@ -1129,7 +1063,7 @@ class UserService {
         start_time: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 minutes ago
         plan_type: 'pay_per_minute',
         max_duration_minutes: 60,
-        cost_per_minute: 0.5,
+        cost_per_minute: 5.00,
         booth_id: '550e8400-e29b-41d4-a716-446655440001'
       }
     ]

@@ -221,7 +221,7 @@ class BoothService {
         end_time: endTime.toISOString(),
         total_minutes: durationMinutes,
         status: 'active',
-        cost: durationMinutes * 0.5 // Assuming 0.5 per minute
+        cost: durationMinutes * 5.0 // 5 SEK per minute
       };
 
       // Ensure we have at least one user reference

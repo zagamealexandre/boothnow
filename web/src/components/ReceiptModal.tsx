@@ -86,7 +86,7 @@ Duration: ${session?.total_minutes || 0} minutes
 
 PAYMENT DETAILS
 ---------------
-Amount: ${pdfData.currency} ${pdfData.amount.toFixed(2)}
+Amount: ${pdfData.currency} ${pdfData.amount.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
 Transaction ID: ${payment?.transaction_id || 'N/A'}
 Payment Date: ${payment?.created_at ? new Date(payment.created_at).toLocaleString() : 'N/A'}
 
@@ -106,8 +106,8 @@ Thank you for using BoothNow!
     URL.revokeObjectURL(url);
   };
 
-  const formatCurrency = (amount: number, currency: string = 'EUR') => {
-    return new Intl.NumberFormat('en-EU', {
+  const formatCurrency = (amount: number, currency: string = 'SEK') => {
+    return new Intl.NumberFormat('sv-SE', {
       style: 'currency',
       currency: currency
     }).format(amount);

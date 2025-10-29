@@ -38,7 +38,7 @@ export default function DetailedActiveSession({
       const elapsedMinutes = elapsed / 60;
       
       setElapsedTime(elapsed);
-      setCurrentCost(elapsedMinutes * 0.50); // Always use 0.50 per minute
+      setCurrentCost(elapsedMinutes * session.cost_per_minute);
       setTimeRemaining(Math.max(0, (session.max_duration_minutes * 60) - elapsed));
     };
 
@@ -100,7 +100,7 @@ export default function DetailedActiveSession({
             <div>
               <p className="text-xs text-gray-500 uppercase tracking-wide">Plan Type</p>
               <p className="text-sm font-medium text-gray-900">
-                {session.plan_type === 'pay_per_minute' ? 'Pay Per Minute (€0.50/min)' : 'Membership (€29/month)'}
+                {session.plan_type === 'pay_per_minute' ? 'Pay Per Minute (5 SEK/min)' : 'Membership (299 SEK/month)'}
               </p>
             </div>
             <div>
@@ -131,10 +131,10 @@ export default function DetailedActiveSession({
           <div className="bg-blue-50 rounded-lg p-4">
             <div className="text-center">
               <div className="text-lg font-semibold text-blue-900 mb-1">
-                Current Cost: €{currentCost.toFixed(2)}
+                Current Cost: {currentCost.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
               </div>
               <div className="text-sm text-blue-700">
-                €{session.cost_per_minute}/minute
+                {session.cost_per_minute} SEK/minute
               </div>
             </div>
           </div>

@@ -167,15 +167,11 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
         
         // First try to initialize user profile (creates if doesn't exist)
         // Pass the Clerk user data to get real name and email
-        console.log('🔍 Dashboard - initializing user profile for:', userId);
-        console.log('🔍 Dashboard - clerkUser data:', clerkUser);
         
         // Fix user clerk_user_id first
-        console.log('🔍 Dashboard - Fixing user clerk_user_id...');
         const userEmail = clerkUser?.emailAddresses?.[0]?.emailAddress;
         // Initialize user profile if it doesn't exist
         const profile = await userService.initializeUserProfile(userId, clerkUser)
-        console.log('🔍 Dashboard - user profile initialized:', profile ? 'Success' : 'Failed');
         
         // Then load stats, session history, active sessions, bookings, and receipts in parallel
         const [stats, history, active, allBookings, activeBookings, userReceipts] = await Promise.all([
@@ -197,10 +193,6 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
         
         // Load subscriptions
         await loadSubscriptions();
-        
-        console.log('✅ Dashboard - loadUserData: All data loaded successfully')
-        console.log('📊 Dashboard - loadUserData: Bookings count:', allBookings.length)
-        console.log('📊 Dashboard - loadUserData: Active bookings count:', activeBookings.length)
       } catch (error) {
         console.error('Error loading user data:', error)
       } finally {
@@ -216,8 +208,6 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
     const handleBookingUpdate = async () => {
       if (!userId) return
       
-      console.log('🔧 Dashboard - handleBookingUpdate: Refreshing bookings...')
-      
       try {
         const [allBookings, activeBookings, activeSessions] = await Promise.all([
           bookingsService.getUserBookings(userId),
@@ -228,8 +218,6 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
         setBookings(allBookings)
         setActiveBookings(activeBookings)
         setActiveSessions(activeSessions)
-        
-        console.log('✅ Dashboard - handleBookingUpdate: Bookings and sessions refreshed successfully')
       } catch (error) {
         console.error('❌ Dashboard - handleBookingUpdate: Error refreshing bookings:', error)
       }
@@ -248,7 +236,6 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
 
     const refreshInterval = setInterval(async () => {
       try {
-        console.log('🔄 Dashboard - Periodic refresh: Updating active sessions...')
         const [allBookings, activeBookings] = await Promise.all([
           bookingsService.getUserBookings(userId),
           bookingsService.getActiveBookings(userId)
@@ -270,8 +257,19 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
     if ((window as any).recenterMap) {
       (window as any).recenterMap()
     } else {
-      console.log('Map not ready yet, please wait...')
     }
+  }
+
+  // Force refresh markers when switching to map tab
+  const handleMapTabSwitch = () => {
+    setActiveTab('map')
+    setProfileActiveSection('overview')
+    
+    // Force refresh markers after a short delay
+    setTimeout(() => {
+      // Trigger a re-render by updating a dummy state
+      setShowSearchField(false)
+    }, 100)
   }
 
   // Handle search functionality
@@ -391,7 +389,6 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
   // Camera functions
   const startCamera = async () => {
     try {
-      console.log('Starting camera...')
       
       // Check if getUserMedia is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -406,7 +403,6 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
         } 
       })
       
-      console.log('Camera stream obtained:', stream)
       
       // Set the stream and activate camera first
       streamRef.current = stream
@@ -415,19 +411,15 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
       // Wait for the video element to be rendered, then attach stream
       setTimeout(() => {
         if (videoRef.current) {
-          console.log('Attaching stream to video element')
           videoRef.current.srcObject = stream
           videoRef.current.onloadedmetadata = () => {
-            console.log('Video metadata loaded')
             videoRef.current?.play().catch(console.error)
           }
           videoRef.current.oncanplay = () => {
-            console.log('Video can play')
           }
           videoRef.current.onerror = (e) => {
             console.error('Video error:', e)
           }
-          console.log('Camera started successfully')
         } else {
           console.error('Video ref still not available after timeout')
         }
@@ -466,7 +458,6 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
     // 1. Validate the QR code format
     // 2. Send to backend to unlock booth
     // 3. Show success/error message
-    console.log('Scanned QR code:', result)
   }
 
   // Session management functions
@@ -484,9 +475,7 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
     if (!userId) return
 
     try {
-      console.log('🔍 Dashboard - Ending session:', sessionId)
       const success = await userService.endSession(userId, sessionId)
-      console.log('🔍 Dashboard - End session result:', success)
       
       if (success) {
         // Award points for completing a booth session
@@ -499,12 +488,10 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
         // Always remove from UI immediately (works for both mock and real data)
         setActiveSessions(prev => {
           const updated = prev.filter(session => session.id !== sessionId)
-          console.log('🔍 Dashboard - Removed session from UI, remaining:', updated.length)
           return updated
         })
         
         // Refresh all user data to ensure profile tab updates
-        console.log('🔍 Dashboard - Refreshing all user data after session end...')
         
         // Refresh stats, session history, and bookings
         const [stats, history, allBookings, activeBookings] = await Promise.all([
@@ -519,7 +506,6 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
         setBookings(allBookings)
         setActiveBookings(activeBookings)
         
-        console.log('🔍 Dashboard - Session ended successfully, all data refreshed')
       } else {
         console.error('🔍 Dashboard - Failed to end session')
       }
@@ -530,19 +516,16 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
 
   const handleModifySession = (sessionId: string) => {
     // TODO: Implement session modification
-    console.log('Modify session:', sessionId)
   }
 
   const handleCancelBooking = async (bookingId: string) => {
     if (!userId) return
     
     try {
-      console.log('🔧 Dashboard - handleCancelBooking: Cancelling booking:', bookingId)
       
       const result = await bookingsService.cancelBooking(bookingId, userId)
       
       if (result.success) {
-        console.log('✅ Dashboard - handleCancelBooking: Booking cancelled successfully')
         
         // Refresh bookings data
         const [allBookings, activeBookings] = await Promise.all([
@@ -574,7 +557,6 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
     if (!userId) return
     
     try {
-      console.log('🔧 Dashboard - handleDownloadReceipt: Downloading receipt:', receiptId)
       
       // Mark as downloaded
       await receiptsService.markReceiptDownloaded(receiptId, userId)
@@ -591,7 +573,6 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
         const updatedReceipts = await receiptsService.getUserReceipts(userId, 20, 0)
         setReceipts(updatedReceipts)
         
-        console.log('✅ Dashboard - handleDownloadReceipt: Receipt downloaded successfully')
       }
     } catch (error) {
       console.error('❌ Dashboard - handleDownloadReceipt: Exception:', error)
@@ -629,7 +610,7 @@ Duration: ${session?.total_minutes || 0} minutes
 
 PAYMENT DETAILS
 ---------------
-Amount: ${pdfData.currency} ${pdfData.amount.toFixed(2)}
+Amount: ${pdfData.currency} ${pdfData.amount.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
 Transaction ID: ${payment?.transaction_id || 'N/A'}
 Payment Date: ${payment?.created_at ? new Date(payment.created_at).toLocaleString() : 'N/A'}
 
@@ -652,12 +633,10 @@ Thank you for using BoothNow!
   // Handle video element when camera becomes active
   useEffect(() => {
     if (cameraActive && streamRef.current) {
-      console.log('Camera is active, setting up video element...')
       
       // Use a small delay to ensure the video element is rendered
       const timer = setTimeout(() => {
         if (videoRef.current) {
-          console.log('Video element found, attaching stream')
           videoRef.current.srcObject = streamRef.current
           videoRef.current.play().catch(console.error)
         } else {
@@ -1013,7 +992,7 @@ Thank you for using BoothNow!
                         )}
                         {booking.current_cost && (
                           <p className="text-sm text-gray-700 mt-1">
-                            Current cost: €{booking.current_cost.toFixed(2)}
+                            Current cost: {booking.current_cost.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
                           </p>
                         )}
                         {/* Show membership status for active sessions */}
@@ -1090,7 +1069,7 @@ Thank you for using BoothNow!
                         </p>
                         {booking.cost && (
                           <p className="text-xs text-gray-500 mt-1">
-                            Cost: €{booking.cost.toFixed(2)}
+                            Cost: {booking.cost.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
                           </p>
                         )}
                       </div>
@@ -1312,10 +1291,7 @@ Thank you for using BoothNow!
       {/* Bottom Navigation - Mobile Only */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white h-20 flex justify-around items-center shadow-lg z-20">
         <button 
-          onClick={() => {
-            setActiveTab('map')
-            setProfileActiveSection('overview')
-          }}
+          onClick={handleMapTabSwitch}
           className={`flex flex-col items-center transition-colors ${activeTab === 'map' ? 'text-kubo-primary' : 'text-kubo-textGrey'}`}
         >
           <MapPin className="w-6 h-6" />
@@ -1371,7 +1347,6 @@ Thank you for using BoothNow!
           setSelectedProduct(null);
         }}
         onSuccess={(checkout) => {
-          console.log('Checkout created:', checkout);
           // Handle successful checkout creation
         }}
         customerEmail={userProfile?.email}
@@ -1392,7 +1367,7 @@ Thank you for using BoothNow!
             start_time: selectedSession.start_time,
             plan_type: 'pay_per_minute', // Default for now
             max_duration_minutes: 60, // Default for now
-            cost_per_minute: 0.50 // Default for now
+            cost_per_minute: 5.00 // 5 SEK per minute
           }}
           onEndSession={handleEndSession}
           onClose={handleCloseDetailedSession}

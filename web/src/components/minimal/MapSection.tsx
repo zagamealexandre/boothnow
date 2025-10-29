@@ -525,11 +525,25 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
 
   // Effect to add markers when map becomes ready and booths are available
   useEffect(() => {
-    if (mapReady && mapInstanceRef.current && booths.length > 0) {
+    // Only proceed if all conditions are met
+    if (!mapReady || !mapInstanceRef.current || booths.length === 0) {
+      return
+    }
+
+    // Use a timeout to ensure map is fully ready
+    const renderMarkers = () => {
+      if (!mapInstanceRef.current) {
+        setTimeout(renderMarkers, 100)
+        return
+      }
       
-      // Clear existing markers
-      if ((window as any).boothMarkers) {
-        (window as any).boothMarkers.forEach((marker: google.maps.Marker) => marker.setMap(null))
+      // Clear existing markers safely
+      if ((window as any).desktopBoothMarkers) {
+        (window as any).desktopBoothMarkers.forEach((marker: google.maps.Marker) => {
+          if (marker && marker.setMap) {
+            marker.setMap(null)
+          }
+        })
       }
       
       // Add click-outside-to-close functionality for InfoWindow
@@ -552,59 +566,102 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
         : booths.filter(booth => booth.status === selectedStatus)
       
       filteredBooths.forEach((booth) => {
-        // Check if booth is almost available (within 10 minutes)
-        const isAlmostAvailable = booth.status === 'busy' && booth.timeRemaining && booth.timeRemaining <= 10
-        const isPulsing = booth.status === 'available' || isAlmostAvailable
-        
-        const marker = new google.maps.Marker({
-          position: { lat: booth.lat, lng: booth.lng },
-          map: mapInstanceRef.current,
-          title: booth.name,
-          icon: getBoothIcon(booth.status, isPulsing),
-          animation: google.maps.Animation.DROP,
-        })
-
-        marker.addListener('click', () => {
-          // Close any existing info window first
-          if ((window as any).currentInfoWindow) {
-            (window as any).currentInfoWindow.close()
-          }
+        try {
+          // Check if booth is almost available (within 10 minutes)
+          const isAlmostAvailable = booth.status === 'busy' && booth.timeRemaining && booth.timeRemaining <= 10
+          const isPulsing = booth.status === 'available' || isAlmostAvailable
           
-          // Add click animation
-          marker.setAnimation(google.maps.Animation.BOUNCE)
-          setTimeout(() => marker.setAnimation(null), 600)
-          
-          // Create new info window
-          const info = new google.maps.InfoWindow({
-            content: renderBoothCard(booth),
-            ariaLabel: 'Booth details',
-            maxWidth: 300,
-            pixelOffset: new google.maps.Size(0, -10),
-            disableAutoPan: false
+          const marker = new google.maps.Marker({
+            position: { lat: booth.lat, lng: booth.lng },
+            map: mapInstanceRef.current,
+            title: booth.name,
+            icon: getBoothIcon(booth.status, isPulsing),
+            animation: google.maps.Animation.DROP,
           })
-          
-          // Store reference and open
-          ;(window as any).currentInfoWindow = info
-          info.open({ map: mapInstanceRef.current, anchor: marker })
-        })
 
-        // Add hover effect with enhanced animation
-        marker.addListener('mouseover', () => {
-          marker.setAnimation(google.maps.Animation.BOUNCE)
-          setTimeout(() => marker.setAnimation(null), 1000)
-        })
+          marker.addListener('click', () => {
+            // Close any existing info window first
+            if ((window as any).currentInfoWindow) {
+              (window as any).currentInfoWindow.close()
+            }
+            
+            // Add click animation
+            marker.setAnimation(google.maps.Animation.BOUNCE)
+            setTimeout(() => marker.setAnimation(null), 600)
+            
+            // Create new info window
+            const info = new google.maps.InfoWindow({
+              content: renderBoothCard(booth),
+              ariaLabel: 'Booth details',
+              maxWidth: 300,
+              pixelOffset: new google.maps.Size(0, -10),
+              disableAutoPan: false
+            })
+            
+            // Store reference and open
+            ;(window as any).currentInfoWindow = info
+            info.open({ map: mapInstanceRef.current, anchor: marker })
+          })
 
-        markers.push(marker)
+          // Add hover effect with enhanced animation
+          marker.addListener('mouseover', () => {
+            marker.setAnimation(google.maps.Animation.BOUNCE)
+            setTimeout(() => marker.setAnimation(null), 1000)
+          })
+
+          markers.push(marker)
+        } catch (error) {
+          // Error creating marker for booth
+        }
       })
       
       // Add click outside listener
       addClickOutsideListener()
       
-      ;(window as any).boothMarkers = markers
-    } else if (!mapReady) {
-    } else if (!booths.length) {
+      // Store markers with desktop-specific key to avoid conflicts
+      ;(window as any).desktopBoothMarkers = markers
     }
-  }, [mapReady, booths, selectedStatus, userLocation])
+    
+    // Start rendering with a small delay to ensure map is ready
+    setTimeout(renderMarkers, 50)
+  }, [mapReady, booths, selectedStatus]) // Removed userLocation from dependencies
+
+  // Handle visibility change to refresh markers when tab becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && mapReady && mapInstanceRef.current && booths.length > 0) {
+        // Force a re-render by updating the booths state
+        setBooths(prevBooths => [...prevBooths])
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [mapReady, booths.length])
+
+  // Cleanup effect for markers when component unmounts
+  useEffect(() => {
+    return () => {
+      // Clean up markers when component unmounts
+      if ((window as any).desktopBoothMarkers) {
+        (window as any).desktopBoothMarkers.forEach((marker: google.maps.Marker) => {
+          if (marker && marker.setMap) {
+            marker.setMap(null)
+          }
+        })
+        ;(window as any).desktopBoothMarkers = []
+      }
+      
+      // Clean up info window
+      if ((window as any).currentInfoWindow) {
+        (window as any).currentInfoWindow.close()
+        ;(window as any).currentInfoWindow = null
+      }
+    }
+  }, [])
 
   // Auto-refresh booth status every 60 seconds with enhanced animations
   useEffect(() => {

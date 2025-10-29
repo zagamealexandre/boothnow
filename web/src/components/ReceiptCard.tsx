@@ -30,8 +30,8 @@ export default function ReceiptCard({ receipt, onDownload, onView }: ReceiptCard
     });
   };
 
-  const formatCurrency = (amount: number, currency: string = 'EUR') => {
-    return new Intl.NumberFormat('en-EU', {
+  const formatCurrency = (amount: number, currency: string = 'SEK') => {
+    return new Intl.NumberFormat('sv-SE', {
       style: 'currency',
       currency: currency
     }).format(amount);

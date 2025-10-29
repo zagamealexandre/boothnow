@@ -111,10 +111,10 @@ export default function ActiveSession({ session, onEndSession, onModifySession }
             {/* Current Cost */}
             <div className="bg-blue-50 rounded-lg p-4">
               <div className="text-lg font-semibold text-blue-900">
-                Current Cost: €{currentCost.toFixed(2)}
+                Current Cost: {currentCost.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
               </div>
               <div className="text-sm text-blue-700">
-                €{session.cost_per_minute}/minute
+                {session.cost_per_minute} SEK/minute
               </div>
             </div>
 

@@ -200,7 +200,7 @@ class ReceiptsService {
         totalAmount,
         totalReceipts,
         thisMonth,
-        currency: 'EUR'
+        currency: 'SEK'
       };
     } catch (error) {
       console.error('❌ ReceiptsService - getReceiptStats: Exception:', error);

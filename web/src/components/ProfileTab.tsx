@@ -787,7 +787,7 @@ export default function ProfileTab({
               </div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-semibold text-gray-900">€{userStats?.total_spent?.toFixed(2) || '0.00'}</div>
+              <div className="text-lg font-semibold text-gray-900">{(userStats?.total_spent || 0).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK</div>
               <div className="text-sm text-gray-500">Total Spent</div>
             </div>
           </div>
@@ -820,7 +820,7 @@ export default function ProfileTab({
                     </div>
                     {session.cost && (
                       <div className="text-xs font-medium text-green-600 mt-1">
-                        ${session.cost.toFixed(2)}
+                        {session.cost.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
                       </div>
                     )}
                   </div>

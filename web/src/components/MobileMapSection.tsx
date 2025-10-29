@@ -262,11 +262,25 @@ export default function MobileMapSection({ userId }: { userId?: string } = {}) {
 
   // Effect to add markers when booths change and map is ready
   useEffect(() => {
-    if (mapReady && mapInstanceRef.current && booths.length > 0) {
+    // Only proceed if all conditions are met
+    if (!mapReady || !mapInstanceRef.current || booths.length === 0) {
+      return
+    }
+
+    // Use a timeout to ensure map is fully ready
+    const renderMarkers = () => {
+      if (!mapInstanceRef.current) {
+        setTimeout(renderMarkers, 100)
+        return
+      }
       
-      // Clear existing markers
-      if ((window as any).boothMarkers) {
-        (window as any).boothMarkers.forEach((marker: google.maps.Marker) => marker.setMap(null))
+      // Clear existing markers safely
+      if ((window as any).mobileBoothMarkers) {
+        (window as any).mobileBoothMarkers.forEach((marker: google.maps.Marker) => {
+          if (marker && marker.setMap) {
+            marker.setMap(null)
+          }
+        })
       }
       
       // Add click-outside-to-close functionality for InfoWindow
@@ -284,44 +298,50 @@ export default function MobileMapSection({ userId }: { userId?: string } = {}) {
       const markers: google.maps.Marker[] = []
       
       booths.forEach((booth) => {
-        const marker = new google.maps.Marker({
-          position: { lat: booth.lat, lng: booth.lng },
-          map: mapInstanceRef.current,
-          title: booth.name,
-          icon: getBoothIcon(booth.status),
-          animation: google.maps.Animation.DROP,
-        })
-
-        marker.addListener('click', () => {
-          // Close any existing info window first
-          if ((window as any).currentInfoWindow) {
-            (window as any).currentInfoWindow.close()
-          }
-          
-          // Create new info window with increased height
-          const info = new google.maps.InfoWindow({
-            content: renderBoothCard(booth),
-            ariaLabel: 'Booth details',
-            maxWidth: 300,
-            pixelOffset: new google.maps.Size(0, -10)
+        try {
+          const marker = new google.maps.Marker({
+            position: { lat: booth.lat, lng: booth.lng },
+            map: mapInstanceRef.current,
+            title: booth.name,
+            icon: getBoothIcon(booth.status),
+            animation: google.maps.Animation.DROP,
           })
-          
-          // Store reference and open
-          ;(window as any).currentInfoWindow = info
-          info.open({ map: mapInstanceRef.current, anchor: marker })
-        })
 
-        markers.push(marker)
+          marker.addListener('click', () => {
+            // Close any existing info window first
+            if ((window as any).currentInfoWindow) {
+              (window as any).currentInfoWindow.close()
+            }
+            
+            // Create new info window with increased height
+            const info = new google.maps.InfoWindow({
+              content: renderBoothCard(booth),
+              ariaLabel: 'Booth details',
+              maxWidth: 300,
+              pixelOffset: new google.maps.Size(0, -10)
+            })
+            
+            // Store reference and open
+            ;(window as any).currentInfoWindow = info
+            info.open({ map: mapInstanceRef.current, anchor: marker })
+          })
+
+          markers.push(marker)
+        } catch (error) {
+          // Error creating marker for booth
+        }
       })
       
       // Add click outside listener
       addClickOutsideListener()
       
-      ;(window as any).boothMarkers = markers
-    } else if (!mapReady) {
-    } else if (!booths.length) {
+      // Store markers with mobile-specific key to avoid conflicts
+      ;(window as any).mobileBoothMarkers = markers
     }
-  }, [booths, userLocation, mapReady])
+    
+    // Start rendering with a small delay to ensure map is ready
+    setTimeout(renderMarkers, 50)
+  }, [booths, mapReady]) // Removed userLocation from dependencies
 
   useEffect(() => {
     const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
@@ -462,10 +482,42 @@ export default function MobileMapSection({ userId }: { userId?: string } = {}) {
     document.head.appendChild(script)
   }, [])
 
-  // Reset map ready state when component unmounts
+  // Handle visibility change to refresh markers when tab becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && mapReady && mapInstanceRef.current && booths.length > 0) {
+        // Force a re-render by updating the booths state
+        setBooths(prevBooths => [...prevBooths])
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [mapReady, booths.length])
+
+  // Reset map ready state and clean up markers when component unmounts
   useEffect(() => {
     return () => {
       setMapReady(false)
+      
+      // Clean up markers
+      if ((window as any).mobileBoothMarkers) {
+        (window as any).mobileBoothMarkers.forEach((marker: google.maps.Marker) => {
+          if (marker && marker.setMap) {
+            marker.setMap(null)
+          }
+        })
+        ;(window as any).mobileBoothMarkers = []
+      }
+      
+      // Clean up info window
+      if ((window as any).currentInfoWindow) {
+        (window as any).currentInfoWindow.close()
+        ;(window as any).currentInfoWindow = null
+      }
     }
   }, [])
 

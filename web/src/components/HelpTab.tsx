@@ -74,7 +74,7 @@ export default function HelpTab() {
     {
       id: '3',
       question: 'How much does it cost to use a booth?',
-      answer: 'We offer two pricing options: Pay-per-minute at €0.50 per minute (1 hour max per session, unlimited sessions) or Membership at €29/month (1.5 hours max per session, 3 sessions per day). You can see the exact cost when booking and during your session in the live cost counter.',
+      answer: 'We offer two pricing options: Pay-per-minute at 5 SEK per minute (1 hour max per session, unlimited sessions) or Membership at 299 SEK/month (1.5 hours max per session, 3 sessions per day). You can see the exact cost when booking and during your session in the live cost counter.',
       category: 'pricing',
       order_index: 3,
       is_active: true,

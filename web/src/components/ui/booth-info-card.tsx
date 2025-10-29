@@ -162,7 +162,7 @@ export default function BoothInfoCard({ booth, userLocation, handleBoothAction, 
   const buttonInfo = getButtonInfo(booth.status)
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl bg-gray-900 p-3 w-64 min-h-32 shadow-[12px_12px_24px_rgba(0,0,0,0.4)] transition-all duration-300 hover:shadow-[16px_16px_32px_rgba(0,0,0,0.5)] hover:scale-102 hover:-translate-y-1">
+    <div className="group relative overflow-visible rounded-2xl bg-gray-900 p-4 w-64 min-h-40 shadow-[12px_12px_24px_rgba(0,0,0,0.4)] transition-all duration-300 hover:shadow-[16px_16px_32px_rgba(0,0,0,0.5)] hover:scale-102 hover:-translate-y-1">
       
       {/* Status indicator - moved to left, smaller font */}
       <div className="absolute left-2 top-2 z-10">
@@ -191,7 +191,7 @@ export default function BoothInfoCard({ booth, userLocation, handleBoothAction, 
       </div>
 
       {/* Action Buttons - stacked vertically, full width */}
-      <div className="space-y-2 relative z-10">
+      <div className="space-y-2 relative z-10 pb-2">
         {buttonInfo.buttons.map((button, index) => (
           <button
             key={index}

@@ -483,6 +483,14 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
         .gm-style-iw-tc {
           display: none !important;
         }
+        .gm-style-iw-d {
+          max-height: none !important;
+          overflow: visible !important;
+        }
+        .gm-style-iw-c {
+          max-height: none !important;
+          overflow: visible !important;
+        }
       `
       document.head.appendChild(style)
 
@@ -524,6 +532,17 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
         (window as any).boothMarkers.forEach((marker: google.maps.Marker) => marker.setMap(null))
       }
       
+      // Add click-outside-to-close functionality for InfoWindow
+      const addClickOutsideListener = () => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.addListener('click', () => {
+            if ((window as any).currentInfoWindow) {
+              (window as any).currentInfoWindow.close()
+            }
+          })
+        }
+      }
+      
       // Add new markers
       const markers: google.maps.Marker[] = []
       
@@ -560,7 +579,8 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
             content: renderBoothCard(booth),
             ariaLabel: 'Booth details',
             maxWidth: 300,
-            pixelOffset: new google.maps.Size(0, -10)
+            pixelOffset: new google.maps.Size(0, -10),
+            disableAutoPan: false
           })
           
           // Store reference and open
@@ -576,6 +596,9 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
 
         markers.push(marker)
       })
+      
+      // Add click outside listener
+      addClickOutsideListener()
       
       ;(window as any).boothMarkers = markers
     } else if (!mapReady) {

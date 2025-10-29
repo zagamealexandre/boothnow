@@ -269,6 +269,17 @@ export default function MobileMapSection({ userId }: { userId?: string } = {}) {
         (window as any).boothMarkers.forEach((marker: google.maps.Marker) => marker.setMap(null))
       }
       
+      // Add click-outside-to-close functionality for InfoWindow
+      const addClickOutsideListener = () => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.addListener('click', () => {
+            if ((window as any).currentInfoWindow) {
+              (window as any).currentInfoWindow.close()
+            }
+          })
+        }
+      }
+      
       // Add new markers
       const markers: google.maps.Marker[] = []
       
@@ -302,6 +313,9 @@ export default function MobileMapSection({ userId }: { userId?: string } = {}) {
 
         markers.push(marker)
       })
+      
+      // Add click outside listener
+      addClickOutsideListener()
       
       ;(window as any).boothMarkers = markers
     } else if (!mapReady) {
@@ -354,6 +368,40 @@ export default function MobileMapSection({ userId }: { userId?: string } = {}) {
       map.setCenter({ lat: 59.334591, lng: 18.06324 })
       map.setZoom(13)
       
+      // Add custom CSS to remove InfoWindow default styling and fix height issues
+      const style = document.createElement('style')
+      style.textContent = `
+        .gm-style-iw {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        .gm-style-iw-d {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          overflow: visible !important;
+          max-height: none !important;
+        }
+        .gm-style-iw-c {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          max-height: none !important;
+          overflow: visible !important;
+        }
+        .gm-style-iw-tc {
+          display: none !important;
+        }
+      `
+      document.head.appendChild(style)
+
       // Mark map as ready
       setMapReady(true)
 

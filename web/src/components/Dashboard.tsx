@@ -20,6 +20,7 @@ import CompactActiveSession from './CompactActiveSession'
 import DetailedActiveSession from './DetailedActiveSession'
 import ProfileTab from './ProfileTab'
 import HelpTab from './HelpTab'
+import DesktopMessage from './DesktopMessage'
 import { CreemProduct, CreemCheckout } from '../services/creemService'
 
 // Deprecated function removed - using MapSection instead
@@ -84,6 +85,21 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
   const { awardBoothSessionPoints, awardAdvanceBookingPoints } = usePointsEarning()
   const { signOut } = useClerk()
   const router = useRouter()
+  const [isDesktop, setIsDesktop] = useState(false)
+  
+  // Desktop detection
+  useEffect(() => {
+    const checkDevice = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+      const isSmallScreen = window.innerWidth <= 768;
+      setIsDesktop(!isMobileDevice && !isSmallScreen);
+    };
+
+    checkDevice();
+    window.addEventListener('resize', checkDevice);
+    return () => window.removeEventListener('resize', checkDevice);
+  }, []);
   
   const handleSignOut = async () => {
     await signOut()
@@ -571,8 +587,12 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Desktop Header - Hidden on mobile */}
-      <header className="hidden md:block bg-white/95 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-gray-200/50">
+      {/* Desktop Message - Show QR code for mobile access */}
+      <DesktopMessage />
+      
+      {/* Desktop Header - Hidden on mobile and when desktop message is shown */}
+      {!isDesktop && (
+        <header className="hidden md:block bg-white/95 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-gray-200/50">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
@@ -615,6 +635,7 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
           </div>
         </nav>
         </header>
+      )}
 
       {/* Desktop Content */}
       <div className="hidden md:block min-h-screen">

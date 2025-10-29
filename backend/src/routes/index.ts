@@ -7,6 +7,7 @@ import { placesRoutes } from './places';
 import { analyticsRoutes } from './analytics';
 import { sessionRoutes } from './sessions';
 import { helpRoutes } from './help';
+import { receiptRoutes } from './receipts';
 
 export const setupRoutes = (app: Express) => {
   // Public routes
@@ -20,6 +21,7 @@ export const setupRoutes = (app: Express) => {
   app.use('/api/sessions', authMiddleware, sessionRoutes);
   app.use('/api/analytics', authMiddleware, analyticsRoutes);
   app.use('/api/help', authMiddleware, helpRoutes);
+  app.use('/api/receipts', authMiddleware, receiptRoutes);
 
   // Admin routes (require admin authentication)
   app.use('/api/admin', adminAuthMiddleware);

@@ -3,11 +3,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { SignOutButton, useAuth, useClerk } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
-import { MapPin, Clock, Wifi, Shield, LocateFixed, Search, X, Settings, Bell, Users, QrCode, User, Ticket, LifeBuoy, Gift, Star, ShoppingBag, Coffee, CreditCard, Calendar } from 'lucide-react'
+import { MapPin, Clock, Wifi, Shield, LocateFixed, Search, X, Settings, Bell, Users, QrCode, User, Ticket, LifeBuoy, Gift, Star, ShoppingBag, Coffee, CreditCard, Calendar, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { boothService, Booth } from '../services/boothService'
 import { userService, UserProfile, UserStats, SessionHistory, ActiveSession as ActiveSessionType } from '../services/userService'
 import { bookingsService, Booking, ActiveBooking } from '../services/bookingsService'
+import { receiptsService, Receipt } from '../services/receiptsService'
 import { usePointsEarning } from '../hooks/usePointsEarning'
 import { MapSection } from './minimal/MapSection'
 import MobileMapSection from './MobileMapSection'
@@ -21,6 +22,8 @@ import DetailedActiveSession from './DetailedActiveSession'
 import ProfileTab from './ProfileTab'
 import HelpTab from './HelpTab'
 import DesktopMessage from './DesktopMessage'
+import ReceiptCard from './ReceiptCard'
+import ReceiptModal from './ReceiptModal'
 import { CreemProduct, CreemCheckout } from '../services/creemService'
 
 // Deprecated function removed - using MapSection instead
@@ -130,6 +133,10 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
   const [showDetailedSession, setShowDetailedSession] = useState(false)
   const [selectedSession, setSelectedSession] = useState<ActiveBooking | null>(null)
   const [profileActiveSection, setProfileActiveSection] = useState<string>('overview')
+  const [receipts, setReceipts] = useState<Receipt[]>([])
+  const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null)
+  const [showReceiptModal, setShowReceiptModal] = useState(false)
+  const [bookingsActiveTab, setBookingsActiveTab] = useState<'bookings' | 'receipts'>('bookings')
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -170,13 +177,14 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
         const profile = await userService.initializeUserProfile(userId, clerkUser)
         console.log('🔍 Dashboard - user profile initialized:', profile ? 'Success' : 'Failed');
         
-        // Then load stats, session history, active sessions, and bookings in parallel
-        const [stats, history, active, allBookings, activeBookings] = await Promise.all([
+        // Then load stats, session history, active sessions, bookings, and receipts in parallel
+        const [stats, history, active, allBookings, activeBookings, userReceipts] = await Promise.all([
           userService.getUserStats(userId),
           userService.getUserSessionHistory(userId, 5),
           userService.getActiveSessions(userId),
           bookingsService.getUserBookings(userId),
-          bookingsService.getActiveBookings(userId)
+          bookingsService.getActiveBookings(userId),
+          receiptsService.getUserReceipts(userId, 20, 0)
         ])
 
         setUserProfile(profile)
@@ -185,6 +193,7 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
         setActiveSessions(active)
         setBookings(allBookings)
         setActiveBookings(activeBookings)
+        setReceipts(userReceipts)
         
         // Load subscriptions
         await loadSubscriptions();
@@ -555,6 +564,91 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
     }
   }
 
+  // Receipt handling functions
+  const handleViewReceipt = (receiptId: string) => {
+    setSelectedReceiptId(receiptId)
+    setShowReceiptModal(true)
+  }
+
+  const handleDownloadReceipt = async (receiptId: string) => {
+    if (!userId) return
+    
+    try {
+      console.log('🔧 Dashboard - handleDownloadReceipt: Downloading receipt:', receiptId)
+      
+      // Mark as downloaded
+      await receiptsService.markReceiptDownloaded(receiptId, userId)
+      
+      // Generate and download PDF
+      const pdfData = await receiptsService.generateReceiptPDF(receiptId, userId)
+      
+      if (pdfData) {
+        // Create a simple text receipt for now
+        const receiptText = generateReceiptText(pdfData)
+        downloadTextFile(receiptText, `receipt-${pdfData.receiptNumber}.txt`)
+        
+        // Refresh receipts to update status
+        const updatedReceipts = await receiptsService.getUserReceipts(userId, 20, 0)
+        setReceipts(updatedReceipts)
+        
+        console.log('✅ Dashboard - handleDownloadReceipt: Receipt downloaded successfully')
+      }
+    } catch (error) {
+      console.error('❌ Dashboard - handleDownloadReceipt: Exception:', error)
+      alert('An error occurred while downloading the receipt')
+    }
+  }
+
+  const generateReceiptText = (pdfData: any) => {
+    const session = pdfData.session;
+    const payment = pdfData.payment;
+    
+    return `
+BOOTHNOW RECEIPT
+================
+
+Receipt Number: ${pdfData.receiptNumber}
+Generated: ${new Date(pdfData.generatedAt).toLocaleString()}
+
+CUSTOMER DETAILS
+----------------
+Name: ${pdfData.receiptData?.user_name || 'N/A'}
+Email: ${pdfData.receiptData?.user_email || 'N/A'}
+
+BOOTH DETAILS
+-------------
+Booth: ${session?.booths?.name || 'N/A'}
+Partner: ${session?.booths?.partner || 'N/A'}
+Address: ${session?.booths?.address || 'N/A'}
+
+SESSION DETAILS
+---------------
+Start Time: ${session?.start_time ? new Date(session.start_time).toLocaleString() : 'N/A'}
+End Time: ${session?.end_time ? new Date(session.end_time).toLocaleString() : 'N/A'}
+Duration: ${session?.total_minutes || 0} minutes
+
+PAYMENT DETAILS
+---------------
+Amount: ${pdfData.currency} ${pdfData.amount.toFixed(2)}
+Transaction ID: ${payment?.transaction_id || 'N/A'}
+Payment Date: ${payment?.created_at ? new Date(payment.created_at).toLocaleString() : 'N/A'}
+
+Thank you for using BoothNow!
+    `.trim();
+  };
+
+  const downloadTextFile = (text: string, filename: string) => {
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   // Handle video element when camera becomes active
   useEffect(() => {
     if (cameraActive && streamRef.current) {
@@ -852,10 +946,37 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
           <div className="h-full bg-white p-6 pb-24 overflow-y-auto">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900 font-heading">My Bookings</h2>
+              
+              {/* Tab Navigation */}
+              <div className="mt-4 flex space-x-1 bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setBookingsActiveTab('bookings')}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    bookingsActiveTab === 'bookings'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Bookings
+                </button>
+                <button
+                  onClick={() => setBookingsActiveTab('receipts')}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    bookingsActiveTab === 'receipts'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Receipts
+                </button>
+              </div>
             </div>
             
-            {/* Active Sessions */}
-            {activeSessions.length > 0 && (
+            {/* Bookings Content */}
+            {bookingsActiveTab === 'bookings' && (
+              <>
+                {/* Active Sessions */}
+                {activeSessions.length > 0 && (
               <div className="mb-8">
                 {activeSessions.map((session) => (
                   <CompactActiveSession
@@ -1016,6 +1137,36 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
                 </div>
               )}
             </div>
+              </>
+            )}
+
+            {/* Receipts Content */}
+            {bookingsActiveTab === 'receipts' && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Receipts for Reimbursement</h3>
+                {receipts.length > 0 ? (
+                  receipts.map((receipt) => (
+                    <ReceiptCard
+                      key={receipt.id}
+                      receipt={receipt}
+                      onDownload={handleDownloadReceipt}
+                      onView={handleViewReceipt}
+                    />
+                  ))
+                ) : (
+                  <div className="text-center p-8 bg-gray-50 rounded-lg">
+                    <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">No Receipts Yet</h4>
+                    <p className="text-gray-600 mb-4">
+                      Receipts will appear here after you complete booth sessions.
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Receipts are automatically generated for completed sessions.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1245,6 +1396,19 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
           }}
           onEndSession={handleEndSession}
           onClose={handleCloseDetailedSession}
+        />
+      )}
+
+      {/* Receipt Modal */}
+      {showReceiptModal && selectedReceiptId && (
+        <ReceiptModal
+          receiptId={selectedReceiptId}
+          isOpen={showReceiptModal}
+          onClose={() => {
+            setShowReceiptModal(false);
+            setSelectedReceiptId(null);
+          }}
+          clerkUserId={userId || ''}
         />
       )}
     </div>

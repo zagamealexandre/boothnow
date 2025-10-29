@@ -25,9 +25,9 @@ export default function MobileLandingPage() {
       />
       
       {/* Overlay with Logo, Text, and CTA */}
-      <div className="absolute inset-0 flex flex-col items-center justify-between py-12 px-6">
+      <div className="absolute inset-0 flex flex-col h-screen">
         {/* Logo at top */}
-        <div className="mt-8">
+        <div className="pt-6 pb-4">
           <Image
             src="/images/kubologofooter.svg"
             alt="KUBO"
@@ -37,21 +37,25 @@ export default function MobileLandingPage() {
           />
         </div>
 
-        {/* Center content */}
-        <div className="text-center text-white">
-          <h1 className="text-4xl font-bold mb-4 tracking-wider">
-            WELCOME TO KUBO
-          </h1>
-          <p className="text-2xl font-medium tracking-wider">
+        {/* Subtitle under logo */}
+        <div className="text-center text-white pb-4">
+          <h2 className="text-xl font-medium tracking-wider" style={{ fontFamily: "var(--font-heading), system-ui, sans-serif" }}>
             YOUR FOCUS SPACE
-          </p>
+          </h2>
         </div>
 
-        {/* CTA at bottom */}
-        <div className="mb-8">
+        {/* Center content - Welcome text */}
+        <div className="flex-1 flex items-center justify-center text-center text-white">
+          <h1 className="text-4xl font-bold tracking-wider">
+            WELCOME TO KUBO
+          </h1>
+        </div>
+
+        {/* CTA at bottom - always visible */}
+        <div className="pb-6 px-6">
           <SignedOut>
             <SignInButton mode="modal" afterSignInUrl="/dashboard" afterSignUpUrl="/dashboard">
-              <button className="bg-[#F5BF59] hover:bg-[#F5BF59]/90 text-[#2B3F5F] font-semibold px-8 py-4 rounded-xl text-lg transition-colors shadow-lg">
+              <button className="w-full bg-[#F5BF59] hover:bg-[#F5BF59]/90 text-[#2B3F5F] font-semibold px-8 py-4 rounded-xl text-lg transition-colors shadow-lg">
                 Sign in to continue
               </button>
             </SignInButton>
@@ -59,7 +63,7 @@ export default function MobileLandingPage() {
           <SignedIn>
             <a 
               href="/dashboard" 
-              className="bg-[#F5BF59] hover:bg-[#F5BF59]/90 text-[#2B3F5F] font-semibold px-8 py-4 rounded-xl text-lg transition-colors shadow-lg inline-block"
+              className="w-full bg-[#F5BF59] hover:bg-[#F5BF59]/90 text-[#2B3F5F] font-semibold px-8 py-4 rounded-xl text-lg transition-colors shadow-lg inline-block text-center"
             >
               Go to Dashboard
             </a>

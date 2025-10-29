@@ -63,16 +63,26 @@ function Section({
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, isBlue = false }: { label: string; value: string; isBlue?: boolean }) {
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-      <div className="text-neutral-500 text-sm">{label}</div>
+    <div 
+      className={`rounded-2xl border p-4 relative transition-all duration-300 hover:scale-105 hover:shadow-xl group h-full flex flex-col justify-center ${isBlue ? 'border-transparent' : 'border-neutral-200 bg-white hover:border-neutral-300'}`}
+      style={isBlue ? { backgroundColor: K.navy } : {}}
+    >
+      <div className={`text-xs font-medium tracking-wide uppercase ${isBlue ? 'text-white/80' : 'text-neutral-500'}`}>{label}</div>
       <div
-        className="mt-1 text-2xl font-semibold"
-        style={{ color: K.ink, fontFamily: "Inter, system-ui, sans-serif" }}
+        className="mt-1 text-xl md:text-2xl font-bold transition-colors duration-300"
+        style={{ 
+          color: isBlue ? 'white' : K.ink, 
+          fontFamily: "Inter, system-ui, sans-serif" 
+        }}
       >
         {value}
       </div>
+      <div className={`absolute right-0 top-1/2 transform -translate-y-1/2 w-px h-6 hidden md:block transition-opacity duration-300 group-hover:opacity-50 ${isBlue ? 'bg-white/30' : 'bg-neutral-200'}`}></div>
+      
+      {/* Subtle hover effect */}
+      <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-10 transition-opacity duration-300 ${isBlue ? 'bg-white' : 'bg-neutral-900'}`}></div>
     </div>
   );
 }
@@ -149,48 +159,84 @@ export default function PresentationPage() {
         {/* Cover */}
         <section
           id="cover"
-          className="min-h-full snap-start grid place-items-center px-6 md:px-8 lg:px-12"
+          className="h-[calc(100svh-56px)] snap-start relative overflow-hidden flex items-center justify-center"
           style={{
             background:
-              "radial-gradient(1200px 600px at 10% -10%, rgba(43,63,95,.12), transparent), radial-gradient(1000px 500px at 90% 110%, rgba(245,191,89,.12), transparent)",
+              "radial-gradient(1400px 700px at 15% -15%, rgba(43,63,95,.15), transparent), radial-gradient(1200px 600px at 85% 115%, rgba(245,191,89,.18), transparent), linear-gradient(135deg, rgba(0,0,0,.03) 0%, rgba(0,0,0,.08) 100%)",
           }}
         >
-          <div className="w-full max-w-5xl text-center">
+          <div className="relative z-10 w-full max-w-5xl mx-auto px-6 md:px-8 lg:px-12 text-center">
             <h1 className="sr-only">KUBO — instant quiet, right where you are</h1>
-            <div className="flex items-center justify-center">
-              <Image
-                src="/images/kubologo.svg"
-                alt="KUBO"
-                width={200}
-                height={60}
-                priority
-              />
+            
+            {/* Logo with enhanced styling */}
+            <div className="flex items-center justify-center mb-8">
+              <div className="relative group">
+                <Image
+                  src="/images/kubologo.svg"
+                  alt="KUBO"
+                  width={240}
+                  height={72}
+                  priority
+                  className="transition-all duration-500 group-hover:scale-105"
+                />
+                <div className="absolute -inset-4 rounded-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-500" style={{ backgroundColor: K.gold }}></div>
+              </div>
             </div>
-            <div className="mt-3 text-[26px] md:text-[36px] font-display" style={{ fontFamily: "Aboreto, serif", color: K.ink }}>
-              instant quiet, right where you are
-            </div>
-            <p className="mt-5 text-[18px] md:text-[20px] text-neutral-700">
-              Urban micro-workspaces inside the places people already visit,
-              unlocked from your phone, fair billing by the minute or simple plans.
-            </p>
 
-            <div className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Stat label="Pilot city" value="Stockholm" />
-              <Stat label="Locations" value="7-Eleven network" />
-              <Stat label="Booths in pilot" value="10" />
-              <Stat label="Price" value="€0.50 per minute" />
+            {/* Enhanced typography hierarchy */}
+            <div className="space-y-6 mb-16">
+              <h2 className="text-[32px] md:text-[48px] lg:text-[56px] font-display leading-tight tracking-tight" style={{ fontFamily: "Aboreto, serif", color: K.ink }}>
+                <span className="block">instant quiet,</span>
+                <span className="block mt-2" style={{ color: K.ink }}>right where you are</span>
+              </h2>
+              
+              <div className="max-w-2xl mx-auto">
+                <p className="text-[18px] md:text-[22px] text-neutral-600 font-medium leading-relaxed">
+                  Because finding focus should be as easy as finding coffee.
+                </p>
+              </div>
+            </div>
+
+            {/* Enhanced stats with better visual flow */}
+            <div className="flex justify-center">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 max-w-4xl">
+                <div className="group h-24">
+                  <Stat label="Pilot city" value="Stockholm" isBlue={true} />
+                </div>
+                <div className="group h-24">
+                  <Stat label="Locations" value="7-Eleven network" />
+                </div>
+                <div className="group h-24">
+                  <Stat label="Booths in pilot" value="10" isBlue={true} />
+                </div>
+                <div className="group h-24">
+                  <Stat label="Price" value="€0.50 per minute" />
+                </div>
+              </div>
+            </div>
+
+            {/* Subtle call-to-action hint */}
+            <div className="text-center mt-12">
+              <div className="inline-flex items-center space-x-2 text-sm text-neutral-500">
+                <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: K.gold }}></div>
+                <span>Scroll to explore</span>
+                <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: K.gold, animationDelay: '0.5s' }}></div>
+              </div>
             </div>
           </div>
         </section>
 
         <Section id="problem" title="Problem">
         <div className="grid md:grid-cols-2 gap-8">
-          <ul className="space-y-3 list-disc pl-5">
-            <li>Cafés are noisy, calls feel unprofessional.</li>
-            <li>Coworking day passes feel overpriced for ten minute needs.</li>
-            <li>Home is not always possible during the day.</li>
-            <li>People want short, flexible access to quiet space near them.</li>
-          </ul>
+          <div className="rounded-2xl border border-transparent p-5" style={{ backgroundColor: K.navy }}>
+            <h3 className="font-semibold mb-2 text-white">Key pain points</h3>
+            <ul className="space-y-3 list-disc pl-5 text-white/90">
+              <li>Cafés are noisy, calls feel unprofessional.</li>
+              <li>Coworking day passes feel overpriced for ten minute needs.</li>
+              <li>Home is not always possible during the day.</li>
+              <li>People want short, flexible access to quiet space near them.</li>
+            </ul>
+          </div>
           <div className="rounded-2xl border border-neutral-200 p-5">
             <h3 className="font-semibold mb-2">Who feels it</h3>
             <p>
@@ -216,9 +262,9 @@ export default function PresentationPage() {
             </ul>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Stat label="Unlock time" value="under 5 sec" />
+            <Stat label="Unlock time" value="under 5 sec" isBlue={true} />
             <Stat label="Noise drop" value="up to 30 dB" />
-            <Stat label="Set up" value="in store" />
+            <Stat label="Set up" value="in store" isBlue={true} />
             <Stat label="Host share" value="15 percent" />
           </div>
         </div>
@@ -249,9 +295,9 @@ export default function PresentationPage() {
 
         <Section id="market" title="Market">
         <div className="grid md:grid-cols-2 gap-8">
-          <div className="rounded-2xl border border-neutral-200 p-5">
-            <h3 className="font-semibold">Target users</h3>
-            <p>
+          <div className="rounded-2xl border border-transparent p-5" style={{ backgroundColor: K.navy }}>
+            <h3 className="font-semibold text-white">Target users</h3>
+            <p className="text-white/90">
               Mobile professionals in Nordic capitals first, then other
               European cities with dense convenience footprints.
             </p>
@@ -278,6 +324,7 @@ export default function PresentationPage() {
                 "Corporate plans: team credits",
                 "Host share: 15% per booking",
               ],
+              isBlue: true,
             },
             {
               title: "Cost structure",
@@ -300,10 +347,11 @@ export default function PresentationPage() {
           ].map((col, i) => (
             <div
               key={i}
-              className="border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition"
+              className={`border rounded-xl p-6 shadow-sm hover:shadow-md transition ${col.isBlue ? 'border-transparent' : 'border-gray-200'}`}
+              style={col.isBlue ? { backgroundColor: K.navy } : {}}
             >
-              <h3 className="font-semibold" style={{ color: K.navy }}>{col.title}</h3>
-              <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+              <h3 className="font-semibold" style={{ color: col.isBlue ? 'white' : K.navy }}>{col.title}</h3>
+              <ul className={`list-disc list-inside text-sm space-y-1 ${col.isBlue ? 'text-white/90' : 'text-gray-700'}`}>
                 {col.items.map((item, j) => <li key={j}>{item}</li>)}
               </ul>
             </div>
@@ -323,6 +371,7 @@ export default function PresentationPage() {
                 "Early users recruited via 7-Eleven receipts and social channels.",
               ],
               goal: "Prove adoption through proximity marketing and organic walk-ins.",
+              isBlue: true,
             },
             {
               title: "Phase 2 – Growth loops",
@@ -344,12 +393,16 @@ export default function PresentationPage() {
               goal: "Build network density and recurring B2B revenue.",
             },
           ].map((phase, i) => (
-            <div key={i} className="border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition flex flex-col h-full">
-              <h3 className="font-semibold" style={{ color: K.navy }}>{phase.title}</h3>
-              <ul className="list-disc list-inside text-sm text-gray-700 space-y-1 mb-3 flex-grow">
+            <div 
+              key={i} 
+              className={`border rounded-xl p-6 shadow-sm hover:shadow-md transition flex flex-col h-full ${phase.isBlue ? 'border-transparent' : 'border-gray-200'}`}
+              style={phase.isBlue ? { backgroundColor: K.navy } : {}}
+            >
+              <h3 className="font-semibold" style={{ color: phase.isBlue ? 'white' : K.navy }}>{phase.title}</h3>
+              <ul className={`list-disc list-inside text-sm space-y-1 mb-3 flex-grow ${phase.isBlue ? 'text-white/90' : 'text-gray-700'}`}>
                 {phase.items.map((item, j) => <li key={j}>{item}</li>)}
               </ul>
-              <p className="text-sm mt-auto" style={{ color: K.green }}>{phase.goal}</p>
+              <p className={`text-sm mt-auto ${phase.isBlue ? 'text-yellow-300' : ''}`} style={{ color: phase.isBlue ? '' : K.green }}>{phase.goal}</p>
             </div>
           ))}
         </div>
@@ -366,13 +419,13 @@ export default function PresentationPage() {
                 <li>Airport/Station pods (Sleepbox, GoSleep): High cost, limited availability, built for travel not daily urban use.</li>
               </ul>
             </div>
-            <div className="rounded-2xl border border-neutral-200 p-6 bg-white">
-              <h4 className="font-semibold" style={{ color: K.navy }}>KUBO advantage</h4>
-              <ul className="list-disc list-inside mt-3 space-y-2 text-sm text-neutral-700">
+            <div className="rounded-2xl border border-transparent p-6" style={{ backgroundColor: K.navy }}>
+              <h4 className="font-semibold text-white">KUBO advantage</h4>
+              <ul className="list-disc list-inside mt-3 space-y-2 text-sm text-white/90">
                 <li>Proximity: Located inside existing city venues (7-Eleven, transport hubs).</li>
                 <li>Speed: Tap, unlock, and start in seconds — no receptionist or check-in.</li>
                 <li>Pricing: Pay only for minutes or short slots — the first truly micro workspace model.</li>
-                <li>Accessibility: Always open, always available, embedded in people’s daily routes.</li>
+                <li>Accessibility: Always open, always available, embedded in people's daily routes.</li>
               </ul>
             </div>
           </div>
@@ -417,6 +470,7 @@ export default function PresentationPage() {
                   "Validate demand and unit economics",
                 ],
                 goal: "Prove technical reliability and operational viability.",
+                isBlue: true,
               },
               {
                 title: "Phase 2 – Product Expansion",
@@ -442,16 +496,17 @@ export default function PresentationPage() {
             ].map((phase, i) => (
               <div
                 key={i}
-                className="rounded-xl border border-gray-200 p-6 text-left shadow-sm hover:shadow-md transition flex flex-col h-full"
+                className={`rounded-xl border p-6 text-left shadow-sm hover:shadow-md transition flex flex-col h-full ${phase.isBlue ? 'border-transparent' : 'border-gray-200'}`}
+                style={phase.isBlue ? { backgroundColor: K.navy } : {}}
               >
-                <h3 className="font-semibold" style={{ color: K.navy }}>{phase.title}</h3>
-                <p className="text-sm text-gray-500 mb-3">{phase.time}</p>
-                <ul className="list-disc list-inside text-sm text-gray-700 mb-4 space-y-1 flex-grow">
+                <h3 className="font-semibold" style={{ color: phase.isBlue ? 'white' : K.navy }}>{phase.title}</h3>
+                <p className={`text-sm mb-3 ${phase.isBlue ? 'text-white/80' : 'text-gray-500'}`}>{phase.time}</p>
+                <ul className={`list-disc list-inside text-sm mb-4 space-y-1 flex-grow ${phase.isBlue ? 'text-white/90' : 'text-gray-700'}`}>
                   {phase.items.map((item, j) => (
                     <li key={j}>{item}</li>
                   ))}
                 </ul>
-                <p className="text-sm mt-auto" style={{ color: K.green }}>{phase.goal}</p>
+                <p className={`text-sm mt-auto ${phase.isBlue ? 'text-yellow-300' : ''}`} style={{ color: phase.isBlue ? '' : K.green }}>{phase.goal}</p>
               </div>
             ))}
           </div>

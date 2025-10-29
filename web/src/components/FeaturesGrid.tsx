@@ -14,8 +14,8 @@ export default function FeaturesGrid() {
     },
     { 
       icon: MapPin, 
-      title: '50 LOCATIONS', 
-      text: 'Find your booth in stations and cafés.' 
+      title: '10 LOCATIONS', 
+      text: 'Find your booth conveniently located in Central Stockholm.' 
     },
     { 
       icon: CreditCard, 

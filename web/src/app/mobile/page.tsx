@@ -24,20 +24,35 @@ export default function MobileLandingPage() {
         priority
       />
       
-      {/* Overlay with Sign In CTA */}
-      <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-        <div className="text-center px-6">
-          <h1 className="text-white text-3xl font-bold mb-4">
-            Welcome to KUBO
+      {/* Overlay with Logo, Text, and CTA */}
+      <div className="absolute inset-0 flex flex-col items-center justify-between py-12 px-6">
+        {/* Logo at top */}
+        <div className="mt-8">
+          <Image
+            src="/images/kubologofooter.svg"
+            alt="KUBO"
+            width={120}
+            height={40}
+            className="mx-auto"
+          />
+        </div>
+
+        {/* Center content */}
+        <div className="text-center text-white">
+          <h1 className="text-4xl font-bold mb-4 tracking-wider">
+            WELCOME TO KUBO
           </h1>
-          <p className="text-white/90 text-lg mb-8 max-w-sm">
-            Your personal booth for business calls. Convenient. Private. Affordable.
+          <p className="text-2xl font-medium tracking-wider">
+            YOUR FOCUS SPACE
           </p>
-          
+        </div>
+
+        {/* CTA at bottom */}
+        <div className="mb-8">
           <SignedOut>
             <SignInButton mode="modal" afterSignInUrl="/dashboard" afterSignUpUrl="/dashboard">
               <button className="bg-[#F5BF59] hover:bg-[#F5BF59]/90 text-[#2B3F5F] font-semibold px-8 py-4 rounded-xl text-lg transition-colors shadow-lg">
-                Sign In to Continue
+                Sign in to continue
               </button>
             </SignInButton>
           </SignedOut>

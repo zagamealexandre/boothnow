@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import { SignInButton, SignedIn, SignedOut } from '@clerk/nextjs'
+import QRCode from './QRCode'
 
 export default function Hero() {
   const [mounted, setMounted] = useState(false)

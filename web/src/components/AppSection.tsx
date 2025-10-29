@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import QRCode from './QRCode'
 
 export default function AppSection() {
   return (
@@ -10,7 +11,7 @@ export default function AppSection() {
             <p className="text-lg italic font-body">"Kubo has made my working days around the city more efficient and convenient."</p>
             <p className="mt-2 text-sm font-body">— Oskar A., Consultant</p>
           </div>
-          <div className="mt-8">
+          <div className="mt-8 flex items-center gap-6">
             <a href="#" className="inline-block">
               <Image 
                 src="/images/downloadapp.png" 
@@ -20,6 +21,13 @@ export default function AppSection() {
                 className="hover:opacity-90 transition-opacity"
               />
             </a>
+            <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-200">
+              <QRCode 
+                value="https://kubo-seven.vercel.app/mobile"
+                size={120}
+                className="text-gray-800"
+              />
+            </div>
           </div>
         </div>
         <div className="flex justify-center relative">

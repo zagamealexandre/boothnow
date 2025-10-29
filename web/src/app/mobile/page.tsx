@@ -9,18 +9,35 @@ export default function MobileLandingPage() {
   const [mounted, setMounted] = useState(false);
   const [motionGranted, setMotionGranted] = useState(false);
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     
-    // Check if motion permission is needed (iOS Safari)
-    if (typeof DeviceMotionEvent !== 'undefined' && typeof (DeviceMotionEvent as any).requestPermission === 'function') {
-      // iOS Safari - check if already granted
-      setShowPermissionPrompt(true);
-    } else {
-      // Android / desktop – no permission needed
-      setMotionGranted(true);
-    }
+    // Check if it's actually a mobile device
+    const checkMobile = () => {
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                            (typeof window !== 'undefined' && window.innerWidth < 768);
+      setIsMobile(isMobileDevice);
+      
+      if (isMobileDevice) {
+        // Check if motion permission is needed (iOS Safari)
+        if (typeof DeviceMotionEvent !== 'undefined' && typeof (DeviceMotionEvent as any).requestPermission === 'function') {
+          // iOS Safari - check if already granted
+          setShowPermissionPrompt(true);
+        } else {
+          // Android – no permission needed
+          setMotionGranted(true);
+          console.log('Motion granted automatically (Android)');
+        }
+      } else {
+        // Desktop - no gyroscope effect
+        setMotionGranted(false);
+        console.log('Desktop detected - no gyroscope effect');
+      }
+    };
+    
+    checkMobile();
   }, []);
 
   const requestMotionPermission = async () => {
@@ -39,6 +56,11 @@ export default function MobileLandingPage() {
   };
 
   if (!mounted) return null;
+
+  // Debug logging
+  console.log('Is mobile:', isMobile);
+  console.log('Motion granted:', motionGranted);
+  console.log('Show permission prompt:', showPermissionPrompt);
 
   return (
     <div className="relative w-full h-dvh overflow-hidden">
@@ -64,7 +86,7 @@ export default function MobileLandingPage() {
               tiltMaxAngleY={8}
               perspective={1000}
               transitionSpeed={1000}
-              gyroscope={motionGranted}
+              gyroscope={isMobile && motionGranted}
               scale={1.02}
               className="w-[100px] mx-auto"
             >
@@ -85,7 +107,7 @@ export default function MobileLandingPage() {
               tiltMaxAngleY={6}
               perspective={1200}
               transitionSpeed={1200}
-              gyroscope={motionGranted}
+              gyroscope={isMobile && motionGranted}
               scale={1.01}
               className="inline-block"
             >
@@ -102,7 +124,7 @@ export default function MobileLandingPage() {
               tiltMaxAngleY={10}
               perspective={800}
               transitionSpeed={800}
-              gyroscope={motionGranted}
+              gyroscope={isMobile && motionGranted}
               scale={1.05}
               className="inline-block"
             >
@@ -120,7 +142,7 @@ export default function MobileLandingPage() {
             tiltMaxAngleY={5}
             perspective={1000}
             transitionSpeed={1000}
-            gyroscope={motionGranted}
+            gyroscope={isMobile && motionGranted}
             scale={1.02}
             className="w-full"
           >
@@ -143,8 +165,8 @@ export default function MobileLandingPage() {
         </div>
       </div>
 
-      {/* Motion Permission Prompt for iOS */}
-      {showPermissionPrompt && !motionGranted && (
+      {/* Motion Permission Prompt for iOS - only on mobile */}
+      {isMobile && showPermissionPrompt && !motionGranted && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 animate-fadeIn">
           <button
             onClick={requestMotionPermission}

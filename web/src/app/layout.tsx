@@ -9,6 +9,11 @@ export const metadata = {
   title: 'KUBO – Focus Space, On Demand',
   description: 'Private business booths. Calm, premium and on-demand workspaces across the city.',
   keywords: 'kubo, focus space, work booth, private workspace, prebook, pay as you go',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.ico',
+  },
 }
 
 export default function RootLayout({

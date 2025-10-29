@@ -51,7 +51,7 @@ export default function DesktopMessage() {
 
         <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 mb-6">
           <QRCode 
-            value="https://kubo-seven.vercel.app/mobile"
+            value="https://kubo-pod.vercel.app/mobile"
             size={200}
             className="text-gray-800"
           />

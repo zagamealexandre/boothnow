@@ -23,7 +23,7 @@ export default function AppSection() {
             </a>
             <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-200">
               <QRCode 
-                value="https://kubo-seven.vercel.app/mobile"
+                value="https://kubo-pod.vercel.app/mobile"
                 size={120}
                 className="text-gray-800"
               />

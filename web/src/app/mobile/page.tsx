@@ -7,10 +7,36 @@ import Tilt from 'react-parallax-tilt';
 
 export default function MobileLandingPage() {
   const [mounted, setMounted] = useState(false);
+  const [motionGranted, setMotionGranted] = useState(false);
+  const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    
+    // Check if motion permission is needed (iOS Safari)
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof (DeviceMotionEvent as any).requestPermission === 'function') {
+      // iOS Safari - check if already granted
+      setShowPermissionPrompt(true);
+    } else {
+      // Android / desktop – no permission needed
+      setMotionGranted(true);
+    }
   }, []);
+
+  const requestMotionPermission = async () => {
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof (DeviceMotionEvent as any).requestPermission === 'function') {
+      try {
+        const permission = await (DeviceMotionEvent as any).requestPermission();
+        if (permission === 'granted') {
+          setMotionGranted(true);
+          setShowPermissionPrompt(false);
+        }
+      } catch (error) {
+        console.warn('Motion permission denied:', error);
+        setShowPermissionPrompt(false);
+      }
+    }
+  };
 
   if (!mounted) return null;
 
@@ -37,7 +63,7 @@ export default function MobileLandingPage() {
             tiltMaxAngleY={8}
             perspective={1000}
             transitionSpeed={1000}
-            gyroscope={true}
+            gyroscope={motionGranted}
             scale={1.02}
             className="w-[100px] mx-auto"
           >
@@ -58,7 +84,7 @@ export default function MobileLandingPage() {
             tiltMaxAngleY={6}
             perspective={1200}
             transitionSpeed={1200}
-            gyroscope={true}
+            gyroscope={motionGranted}
             scale={1.01}
             className="inline-block"
           >
@@ -75,7 +101,7 @@ export default function MobileLandingPage() {
             tiltMaxAngleY={10}
             perspective={800}
             transitionSpeed={800}
-            gyroscope={true}
+            gyroscope={motionGranted}
             scale={1.05}
             className="inline-block"
           >
@@ -92,7 +118,7 @@ export default function MobileLandingPage() {
             tiltMaxAngleY={5}
             perspective={1000}
             transitionSpeed={1000}
-            gyroscope={true}
+            gyroscope={motionGranted}
             scale={1.02}
             className="w-full"
           >
@@ -114,6 +140,19 @@ export default function MobileLandingPage() {
           </Tilt>
         </div>
       </div>
+
+      {/* Motion Permission Prompt for iOS */}
+      {showPermissionPrompt && !motionGranted && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
+          <button
+            onClick={requestMotionPermission}
+            className="bg-black/80 backdrop-blur-sm text-white text-sm px-6 py-3 rounded-full shadow-lg hover:bg-black/90 transition-colors flex items-center gap-2"
+          >
+            <span>📱</span>
+            <span>Tilt your phone to explore the scene</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

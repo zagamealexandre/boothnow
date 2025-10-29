@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { SignInButton } from '@clerk/nextjs';
+import { SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
 
 export default function MobileLandingPage() {
   const [mounted, setMounted] = useState(false);
@@ -34,15 +34,21 @@ export default function MobileLandingPage() {
             Your personal booth for business calls. Convenient. Private. Affordable.
           </p>
           
-          <SignInButton 
-            mode="modal" 
-            afterSignInUrl="/dashboard" 
-            afterSignUpUrl="/dashboard"
-          >
-            <button className="bg-[#F5BF59] hover:bg-[#F5BF59]/90 text-[#2B3F5F] font-semibold px-8 py-4 rounded-xl text-lg transition-colors shadow-lg">
-              Sign In to Continue
-            </button>
-          </SignInButton>
+          <SignedOut>
+            <SignInButton mode="modal" afterSignInUrl="/dashboard" afterSignUpUrl="/dashboard">
+              <button className="bg-[#F5BF59] hover:bg-[#F5BF59]/90 text-[#2B3F5F] font-semibold px-8 py-4 rounded-xl text-lg transition-colors shadow-lg">
+                Sign In to Continue
+              </button>
+            </SignInButton>
+          </SignedOut>
+          <SignedIn>
+            <a 
+              href="/dashboard" 
+              className="bg-[#F5BF59] hover:bg-[#F5BF59]/90 text-[#2B3F5F] font-semibold px-8 py-4 rounded-xl text-lg transition-colors shadow-lg inline-block"
+            >
+              Go to Dashboard
+            </a>
+          </SignedIn>
         </div>
       </div>
     </div>

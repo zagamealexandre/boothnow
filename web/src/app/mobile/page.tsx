@@ -14,7 +14,7 @@ export default function MobileLandingPage() {
   if (!mounted) return null;
 
   return (
-    <div className="relative w-full h-screen overflow-hidden">
+    <div className="relative w-full h-dvh overflow-hidden">
       {/* Background Image */}
       <Image
         src="/images/landingmobile.png"
@@ -25,37 +25,37 @@ export default function MobileLandingPage() {
       />
       
       {/* Overlay with Logo, Text, and CTA */}
-      <div className="absolute inset-0 flex flex-col h-screen">
+      <div className="absolute inset-0 flex flex-col h-dvh">
         {/* Logo at top */}
-        <div className="pt-6 pb-4">
+        <div className="pt-4 pb-2">
           <Image
             src="/images/kubologofooter.svg"
             alt="KUBO"
-            width={120}
-            height={40}
+            width={100}
+            height={32}
             className="mx-auto"
           />
         </div>
 
         {/* Subtitle under logo */}
-        <div className="text-center text-white pb-4">
-          <h2 className="text-xl font-medium tracking-wider" style={{ fontFamily: "var(--font-heading), system-ui, sans-serif" }}>
+        <div className="text-center text-white pb-2">
+          <h2 className="text-lg font-medium tracking-wider" style={{ fontFamily: "var(--font-heading), system-ui, sans-serif" }}>
             YOUR FOCUS SPACE
           </h2>
         </div>
 
         {/* Center content - Welcome text */}
-        <div className="flex-1 flex items-center justify-center text-center text-white">
-          <h1 className="text-4xl font-bold tracking-wider">
+        <div className="flex-1 flex items-center justify-center text-center text-white px-4">
+          <h1 className="text-3xl font-bold tracking-wider">
             WELCOME TO KUBO
           </h1>
         </div>
 
         {/* CTA at bottom - always visible */}
-        <div className="pb-6 px-6">
+        <div className="pb-4 px-6">
           <SignedOut>
             <SignInButton mode="modal" afterSignInUrl="/dashboard" afterSignUpUrl="/dashboard">
-              <button className="w-full bg-[#F5BF59] hover:bg-[#F5BF59]/90 text-[#2B3F5F] font-semibold px-8 py-4 rounded-xl text-lg transition-colors shadow-lg">
+              <button className="w-full bg-[#F5BF59] hover:bg-[#F5BF59]/90 text-[#2B3F5F] font-semibold px-6 py-3 rounded-xl text-base transition-colors shadow-lg">
                 Sign in to continue
               </button>
             </SignInButton>
@@ -63,7 +63,7 @@ export default function MobileLandingPage() {
           <SignedIn>
             <a 
               href="/dashboard" 
-              className="w-full bg-[#F5BF59] hover:bg-[#F5BF59]/90 text-[#2B3F5F] font-semibold px-8 py-4 rounded-xl text-lg transition-colors shadow-lg inline-block text-center"
+              className="w-full bg-[#F5BF59] hover:bg-[#F5BF59]/90 text-[#2B3F5F] font-semibold px-6 py-3 rounded-xl text-base transition-colors shadow-lg inline-block text-center"
             >
               Go to Dashboard
             </a>

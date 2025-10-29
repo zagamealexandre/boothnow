@@ -1008,9 +1008,23 @@ Thank you for using BoothNow!
                     </div>
                     <div className="mt-3 space-y-2">
                       {booking.status === 'confirmed' ? (
-                        <button className="w-full bg-green-600 text-white text-sm font-medium px-4 py-2 rounded-md">
-                          Check In
-                        </button>
+                        (() => {
+                          const now = new Date();
+                          const startTime = new Date(booking.start_time);
+                          const canCheckIn = now >= startTime;
+                          return (
+                            <button 
+                              className={`w-full text-white text-sm font-medium px-4 py-2 rounded-md ${
+                                canCheckIn 
+                                  ? 'bg-green-600 hover:bg-green-700' 
+                                  : 'bg-gray-400 cursor-not-allowed'
+                              }`}
+                              disabled={!canCheckIn}
+                            >
+                              {canCheckIn ? 'Check In' : 'Check In Available Soon'}
+                            </button>
+                          );
+                        })()
                       ) : booking.status === 'active' ? (
                         <>
                           <button
@@ -1088,11 +1102,23 @@ Thank you for using BoothNow!
                     </div>
                     {booking.status !== 'completed' && booking.status !== 'cancelled' && (
                       <div className="mt-3 flex space-x-2">
-                        {booking.status === 'confirmed' && (
-                          <button className="flex-1 bg-kubo-primary text-black text-sm font-medium px-4 py-2 rounded-md">
-                            Check In
-                          </button>
-                        )}
+                        {booking.status === 'confirmed' && (() => {
+                          const now = new Date();
+                          const startTime = new Date(booking.start_time);
+                          const canCheckIn = now >= startTime;
+                          return (
+                            <button 
+                              className={`flex-1 text-sm font-medium px-4 py-2 rounded-md ${
+                                canCheckIn 
+                                  ? 'bg-kubo-primary text-black hover:bg-kubo-primary/90' 
+                                  : 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                              }`}
+                              disabled={!canCheckIn}
+                            >
+                              {canCheckIn ? 'Check In' : 'Check In Available Soon'}
+                            </button>
+                          );
+                        })()}
                         <button 
                           onClick={() => handleCancelBooking(booking.id)}
                           className="flex-1 border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-md hover:bg-gray-50"

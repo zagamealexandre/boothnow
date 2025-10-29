@@ -47,69 +47,71 @@ export default function MobileLandingPage() {
         src="/images/landingmobile.png"
         alt="KUBO Mobile App"
         fill
-        className="object-cover"
+        className="object-cover z-[-1]"
         priority
       />
       
-      {/* Depth gradient overlay */}
-      <div className="absolute -z-10 bg-gradient-to-b from-[#F5BF59]/20 to-transparent w-full h-full blur-2xl" />
+      {/* Depth gradient overlay - above background for visible depth glow */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#F5BF59]/20 to-transparent w-full h-full blur-2xl z-0" />
       
       {/* Overlay with Logo, Text, and CTA */}
       <div className="absolute inset-0 flex flex-col h-dvh z-10">
-        {/* Logo at top with Tilt effect */}
-        <div className="pt-4 pb-2">
-          <Tilt
-            tiltMaxAngleX={8}
-            tiltMaxAngleY={8}
-            perspective={1000}
-            transitionSpeed={1000}
-            gyroscope={motionGranted}
-            scale={1.02}
-            className="w-[100px] mx-auto"
-          >
-            <Image
-              src="/images/kubologofooter.svg"
-              alt="KUBO"
-              width={100}
-              height={32}
-              className="mx-auto"
-            />
-          </Tilt>
-        </div>
+        <header role="banner" className="flex flex-col items-center">
+          {/* Logo at top with Tilt effect */}
+          <div className="pt-4 pb-2">
+            <Tilt
+              tiltMaxAngleX={8}
+              tiltMaxAngleY={8}
+              perspective={1000}
+              transitionSpeed={1000}
+              gyroscope={motionGranted}
+              scale={1.02}
+              className="w-[100px] mx-auto"
+            >
+              <Image
+                src="/images/kubologofooter.svg"
+                alt="KUBO"
+                width={100}
+                height={32}
+                className="mx-auto"
+              />
+            </Tilt>
+          </div>
 
-        {/* Subtitle under logo with Tilt effect */}
-        <div className="text-center text-white pb-2">
-          <Tilt
-            tiltMaxAngleX={6}
-            tiltMaxAngleY={6}
-            perspective={1200}
-            transitionSpeed={1200}
-            gyroscope={motionGranted}
-            scale={1.01}
-            className="inline-block"
-          >
-            <h2 className="text-lg font-medium tracking-wider" style={{ fontFamily: "var(--font-heading), system-ui, sans-serif" }}>
-              YOUR FOCUS SPACE
-            </h2>
-          </Tilt>
-        </div>
+          {/* Subtitle under logo with Tilt effect */}
+          <div className="text-center text-white pb-2">
+            <Tilt
+              tiltMaxAngleX={6}
+              tiltMaxAngleY={6}
+              perspective={1200}
+              transitionSpeed={1200}
+              gyroscope={motionGranted}
+              scale={1.01}
+              className="inline-block"
+            >
+              <h2 className="text-lg font-medium tracking-wider" style={{ fontFamily: "var(--font-heading), system-ui, sans-serif" }}>
+                YOUR FOCUS SPACE
+              </h2>
+            </Tilt>
+          </div>
 
-        {/* Center content - Welcome text with Tilt effect */}
-        <div className="flex-1 flex items-center justify-center text-center text-white px-4">
-          <Tilt
-            tiltMaxAngleX={10}
-            tiltMaxAngleY={10}
-            perspective={800}
-            transitionSpeed={800}
-            gyroscope={motionGranted}
-            scale={1.05}
-            className="inline-block"
-          >
-            <h1 className="text-3xl font-bold tracking-wider">
-              WELCOME TO KUBO
-            </h1>
-          </Tilt>
-        </div>
+          {/* Center content - Welcome text with Tilt effect */}
+          <div className="flex-1 flex items-center justify-center text-center text-white px-4">
+            <Tilt
+              tiltMaxAngleX={10}
+              tiltMaxAngleY={10}
+              perspective={800}
+              transitionSpeed={800}
+              gyroscope={motionGranted}
+              scale={1.05}
+              className="inline-block"
+            >
+              <h1 className="text-3xl font-bold tracking-wider">
+                WELCOME TO KUBO
+              </h1>
+            </Tilt>
+          </div>
+        </header>
 
         {/* CTA at bottom with Tilt effect */}
         <div className="pb-4 px-6">
@@ -143,7 +145,7 @@ export default function MobileLandingPage() {
 
       {/* Motion Permission Prompt for iOS */}
       {showPermissionPrompt && !motionGranted && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 animate-fadeIn">
           <button
             onClick={requestMotionPermission}
             className="bg-black/80 backdrop-blur-sm text-white text-sm px-6 py-3 rounded-full shadow-lg hover:bg-black/90 transition-colors flex items-center gap-2"

@@ -575,6 +575,51 @@ class BoothService {
 
     return () => clearInterval(demoInterval)
   }
+
+  // Check for booking conflicts in a time range
+  async checkBookingConflicts(boothId: string, startTime: string, endTime: string): Promise<string[]> {
+    try {
+      const { data: conflicts, error } = await supabase
+        .from('sessions')
+        .select('start_time, end_time, status')
+        .eq('booth_id', boothId)
+        .in('status', ['confirmed', 'active'])
+        .or(`and(start_time.lt.${endTime},end_time.gt.${startTime})`)
+
+      if (error) {
+        console.error('Error checking booking conflicts:', error)
+        return []
+      }
+
+      const conflictMessages: string[] = []
+      
+      if (conflicts && conflicts.length > 0) {
+        conflicts.forEach(conflict => {
+          const conflictStart = new Date(conflict.start_time)
+          const conflictEnd = new Date(conflict.end_time)
+          const conflictStartTime = conflictStart.toLocaleTimeString('sv-SE', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          })
+          const conflictEndTime = conflictEnd.toLocaleTimeString('sv-SE', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          })
+          
+          if (conflict.status === 'active') {
+            conflictMessages.push(`Currently in use until ${conflictEndTime}`)
+          } else {
+            conflictMessages.push(`Already booked from ${conflictStartTime} to ${conflictEndTime}`)
+          }
+        })
+      }
+
+      return conflictMessages
+    } catch (error) {
+      console.error('Error checking booking conflicts:', error)
+      return []
+    }
+  }
 }
 
 export const boothService = new BoothService()

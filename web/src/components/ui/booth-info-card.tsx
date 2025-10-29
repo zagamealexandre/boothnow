@@ -49,15 +49,68 @@ export default function BoothInfoCard({ booth, userLocation, handleBoothAction, 
           pulse: false
         }
       case 'prebooked':
+        if (next) {
+          const bookingStart = new Date(next);
+          const warningStart = new Date(bookingStart.getTime() - 60 * 60000); // 1 hour before booking
+          const reservationStart = new Date(bookingStart.getTime() - 30 * 60000); // 30 minutes before booking
+          const timeUntilReservation = Math.ceil((reservationStart.getTime() - now.getTime()) / 60000);
+          
+          // Show as reserved if we're within 30 minutes of booking start
+          if (now >= reservationStart) {
+            return { 
+              label: `Reserved until ${bookingStart.toLocaleTimeString('sv-SE', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}`, 
+              sub: 'Booked by someone else', 
+              color: 'red',
+              bgColor: 'bg-red-50 dark:bg-red-900/20',
+              textColor: 'text-red-700 dark:text-red-400',
+              borderColor: 'border-red-200 dark:border-red-800',
+              icon: <Lock className="h-3 w-3" />,
+              pulse: false
+            }
+          } 
+          // Show warning if we're within 1 hour of booking start
+          else if (now >= warningStart) {
+            return { 
+              label: `Available for ${timeUntilReservation} min`, 
+              sub: `Reserved at ${bookingStart.toLocaleTimeString('sv-SE', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}`, 
+              color: 'green',
+              bgColor: 'bg-green-50 dark:bg-green-900/20',
+              textColor: 'text-green-700 dark:text-green-400',
+              borderColor: 'border-green-200 dark:border-green-800',
+              icon: <CircleDot className="h-4 w-4" />,
+              pulse: true
+            }
+          }
+          // If more than 1 hour away, treat as available
+          else {
+            return { 
+              label: 'Available now', 
+              sub: `Free for ${booth.slotLengthMinutes || 45} min`, 
+              color: 'green',
+              bgColor: 'bg-green-50 dark:bg-green-900/20',
+              textColor: 'text-green-700 dark:text-green-400',
+              borderColor: 'border-green-200 dark:border-green-800',
+              icon: <CircleDot className="h-4 w-4" />,
+              pulse: true
+            }
+          }
+        }
+        // If no next booking, treat as available
         return { 
-          label: `Reserved until ${next?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`, 
-          sub: 'Booked by someone else', 
-          color: 'red',
-          bgColor: 'bg-red-50 dark:bg-red-900/20',
-          textColor: 'text-red-700 dark:text-red-400',
-          borderColor: 'border-red-200 dark:border-red-800',
-          icon: <Lock className="h-3 w-3" />,
-          pulse: false
+          label: 'Available now', 
+          sub: `Free for ${booth.slotLengthMinutes || 45} min`, 
+          color: 'green',
+          bgColor: 'bg-green-50 dark:bg-green-900/20',
+          textColor: 'text-green-700 dark:text-green-400',
+          borderColor: 'border-green-200 dark:border-green-800',
+          icon: <CircleDot className="h-4 w-4" />,
+          pulse: true
         }
       case 'maintenance':
         return { 

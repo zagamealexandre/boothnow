@@ -26,6 +26,7 @@ export default function PreBookingScheduler({
   const [duration, setDuration] = useState(60) // Default 60 minutes
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [conflictCheck, setConflictCheck] = useState<{ checking: boolean; conflicts: string[] }>({ checking: false, conflicts: [] })
 
   // Generate available time slots (every 30 minutes from 8 AM to 10 PM)
   const generateTimeSlots = () => {
@@ -48,6 +49,50 @@ export default function PreBookingScheduler({
   // Get maximum date (30 days from now)
   const maxDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
   const maxDateString = maxDate.toISOString().split('T')[0]
+
+  // Check for conflicts when date or time changes
+  const checkConflicts = async (date: string, time: string, duration: number) => {
+    if (!date || !time) return
+
+    setConflictCheck({ checking: true, conflicts: [] })
+    
+    try {
+      const [hours, minutes] = time.split(':').map(Number)
+      const startTime = new Date(date)
+      startTime.setHours(hours, minutes, 0, 0)
+      const endTime = new Date(startTime.getTime() + duration * 60000)
+
+      // Check for existing bookings in this time range
+      const conflicts = await boothService.checkBookingConflicts(boothId, startTime.toISOString(), endTime.toISOString())
+      
+      setConflictCheck({ checking: false, conflicts })
+    } catch (error) {
+      console.error('Error checking conflicts:', error)
+      setConflictCheck({ checking: false, conflicts: [] })
+    }
+  }
+
+  // Check conflicts when selection changes
+  const handleTimeChange = (time: string) => {
+    setSelectedTime(time)
+    if (selectedDate) {
+      checkConflicts(selectedDate, time, duration)
+    }
+  }
+
+  const handleDateChange = (date: string) => {
+    setSelectedDate(date)
+    if (selectedTime) {
+      checkConflicts(date, selectedTime, duration)
+    }
+  }
+
+  const handleDurationChange = (newDuration: number) => {
+    setDuration(newDuration)
+    if (selectedDate && selectedTime) {
+      checkConflicts(selectedDate, selectedTime, newDuration)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -140,7 +185,7 @@ export default function PreBookingScheduler({
                 <input
                   type="date"
                   value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  onChange={(e) => handleDateChange(e.target.value)}
                   min={minDate}
                   max={maxDateString}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -155,7 +200,7 @@ export default function PreBookingScheduler({
                 </label>
                 <select
                   value={selectedTime}
-                  onChange={(e) => setSelectedTime(e.target.value)}
+                  onChange={(e) => handleTimeChange(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 >
@@ -175,7 +220,7 @@ export default function PreBookingScheduler({
                 </label>
                 <select
                   value={duration}
-                  onChange={(e) => setDuration(Number(e.target.value))}
+                  onChange={(e) => handleDurationChange(Number(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value={30}>30 minutes</option>
@@ -184,6 +229,25 @@ export default function PreBookingScheduler({
                   <option value={120}>2 hours</option>
                 </select>
               </div>
+
+              {/* Conflict Check */}
+              {conflictCheck.checking && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm text-blue-600">Checking for conflicts...</p>
+                </div>
+              )}
+
+              {conflictCheck.conflicts.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-600 font-medium mb-2">Time slot conflicts detected:</p>
+                  <ul className="text-sm text-red-600 space-y-1">
+                    {conflictCheck.conflicts.map((conflict, index) => (
+                      <li key={index}>• {conflict}</li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-red-500 mt-2">Please choose a different time or duration.</p>
+                </div>
+              )}
 
               {/* Error Message */}
               {error && (
@@ -195,7 +259,12 @@ export default function PreBookingScheduler({
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+                disabled={conflictCheck.conflicts.length > 0 || conflictCheck.checking}
+                className={`w-full py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 ${
+                  conflictCheck.conflicts.length > 0 || conflictCheck.checking
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
               >
                 <Clock className="h-4 w-4" />
                 <span>Pre-book Booth</span>

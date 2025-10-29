@@ -36,12 +36,56 @@ function formatBoothStatus(booth: EnhancedBooth) {
         textColor: '#F1C40F'
       }
     case 'prebooked':
+      if (next) {
+        const bookingStart = new Date(next);
+        const warningStart = new Date(bookingStart.getTime() - 60 * 60000); // 1 hour before booking
+        const reservationStart = new Date(bookingStart.getTime() - 30 * 60000); // 30 minutes before booking
+        const timeUntilReservation = Math.ceil((reservationStart.getTime() - now.getTime()) / 60000);
+        
+        // Show as reserved if we're within 30 minutes of booking start
+        if (now >= reservationStart) {
+          return { 
+            label: `Reserved until ${bookingStart.toLocaleTimeString('sv-SE', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}`, 
+            sub: 'Next slot available afterward', 
+            color: 'red',
+            bgColor: '#FCE8E6',
+            textColor: '#E74C3C'
+          }
+        } 
+        // Show warning if we're within 1 hour of booking start
+        else if (now >= warningStart) {
+          return { 
+            label: `Available for ${timeUntilReservation} min`, 
+            sub: `Reserved at ${bookingStart.toLocaleTimeString('sv-SE', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}`, 
+            color: 'green',
+            bgColor: '#E6F4EA',
+            textColor: '#27AE60'
+          }
+        }
+        // If more than 1 hour away, treat as available
+        else {
+          return { 
+            label: 'Available now', 
+            sub: `Free for ${booth.slotLengthMinutes || 45} min`, 
+            color: 'green',
+            bgColor: '#E6F4EA',
+            textColor: '#27AE60'
+          }
+        }
+      }
+      // If no next booking, treat as available
       return { 
-        label: `Reserved until ${next?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`, 
-        sub: 'Next slot available afterward', 
-        color: 'red',
-        bgColor: '#FCE8E6',
-        textColor: '#E74C3C'
+        label: 'Available now', 
+        sub: `Free for ${booth.slotLengthMinutes || 45} min`, 
+        color: 'green',
+        bgColor: '#E6F4EA',
+        textColor: '#27AE60'
       }
     case 'maintenance':
       return { 
@@ -73,27 +117,52 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
   const [mapReady, setMapReady] = useState(false)
   
   // Status-based booth icons with colors and animations
-  const getBoothIcon = (status: string, isPulsing: boolean = false) => {
-    const colors = {
-      available: '#27AE60', // Green (BoothNow brand)
-      busy: '#F1C40F',      // Yellow
-      prebooked: '#E74C3C', // Red
-      maintenance: '#BDC3C7' // Gray
+  const getBoothIcon = (booth: EnhancedBooth, isPulsing: boolean = false) => {
+    const now = new Date()
+    const next = booth.next_available_at ? new Date(booth.next_available_at) : null
+    
+    // Determine actual status color based on prebooked logic
+    let actualColor = '#27AE60' // Default green
+    let actualIcon = 'circle'
+    
+    if (booth.status === 'prebooked' && next) {
+      const bookingStart = new Date(next);
+      const warningStart = new Date(bookingStart.getTime() - 60 * 60000); // 1 hour before booking
+      const reservationStart = new Date(bookingStart.getTime() - 30 * 60000); // 30 minutes before booking
+      
+      if (now >= reservationStart) {
+        // Within 30 minutes - red (actually reserved)
+        actualColor = '#E74C3C'
+        actualIcon = 'lock'
+      } else if (now >= warningStart) {
+        // Within 1 hour - green (available with warning)
+        actualColor = '#27AE60'
+        actualIcon = 'circle'
+      } else {
+        // More than 1 hour - green (available)
+        actualColor = '#27AE60'
+        actualIcon = 'circle'
+      }
+    } else {
+      // Use standard colors for other statuses
+      const colors = {
+        available: '#27AE60', // Green (BoothNow brand)
+        busy: '#F1C40F',      // Yellow
+        maintenance: '#BDC3C7' // Gray
+      }
+      const icons = {
+        available: 'circle',
+        busy: 'clock',
+        maintenance: 'wrench'
+      }
+      actualColor = colors[booth.status as keyof typeof colors] || '#2E6A9C'
+      actualIcon = icons[booth.status as keyof typeof icons] || 'help-circle'
     }
     
-    const icons = {
-      available: 'circle',
-      busy: 'clock',
-      prebooked: 'lock',
-      maintenance: 'wrench'
-    }
-
-    const color = colors[status as keyof typeof colors] || '#2E6A9C'
-    const icon = icons[status as keyof typeof icons] || 'help-circle'
-    const opacity = status === 'maintenance' ? '0.6' : '1'
+    const opacity = booth.status === 'maintenance' ? '0.6' : '1'
     
     // Add pulsing animation for available booths
-    const pulseAnimation = isPulsing && status === 'available' ? `
+    const pulseAnimation = isPulsing && actualIcon === 'circle' ? `
       <animate attributeName="opacity" values="1;0.7;1" dur="2s" repeatCount="indefinite"/>
     ` : ''
 
@@ -107,13 +176,13 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
               </filter>
             </defs>
             <g opacity="${opacity}">
-              <rect x="8" y="6" width="16" height="26" rx="4" fill="${color}" stroke="white" stroke-width="3" filter="url(#shadow)">
+              <rect x="8" y="6" width="16" height="26" rx="4" fill="${actualColor}" stroke="white" stroke-width="3" filter="url(#shadow)">
                 ${pulseAnimation}
               </rect>
-              <circle cx="16" cy="36" r="4" fill="${color}" stroke="white" stroke-width="3">
+              <circle cx="16" cy="36" r="4" fill="${actualColor}" stroke="white" stroke-width="3">
                 ${pulseAnimation}
               </circle>
-              <text x="16" y="20" text-anchor="middle" fill="white" font-size="12" font-family="Arial">${icon === 'circle' ? '●' : icon === 'clock' ? '🕐' : icon === 'lock' ? '🔒' : '🔧'}</text>
+              <text x="16" y="20" text-anchor="middle" fill="white" font-size="12" font-family="Arial">${actualIcon === 'circle' ? '●' : actualIcon === 'clock' ? '🕐' : actualIcon === 'lock' ? '🔒' : '🔧'}</text>
             </g>
           </svg>`
         ),
@@ -575,7 +644,7 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
             position: { lat: booth.lat, lng: booth.lng },
             map: mapInstanceRef.current,
             title: booth.name,
-            icon: getBoothIcon(booth.status, isPulsing),
+            icon: getBoothIcon(booth, isPulsing),
             animation: google.maps.Animation.DROP,
           })
 

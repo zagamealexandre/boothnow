@@ -36,12 +36,57 @@ function formatBoothStatus(booth: EnhancedBooth) {
         textColor: '#F1C40F'
       }
     case 'prebooked':
+      if (next) {
+        const bookingStart = new Date(next);
+        const warningStart = new Date(bookingStart.getTime() - 60 * 60000); // 1 hour before booking
+        const reservationStart = new Date(bookingStart.getTime() - 30 * 60000); // 30 minutes before booking
+        const now = new Date();
+        const timeUntilReservation = Math.ceil((reservationStart.getTime() - now.getTime()) / 60000);
+        
+        // Show as reserved if we're within 30 minutes of booking start
+        if (now >= reservationStart) {
+          return { 
+            label: `Reserved until ${bookingStart.toLocaleTimeString('sv-SE', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}`, 
+            sub: 'Next slot available afterward', 
+            color: 'red',
+            bgColor: '#FCE8E6',
+            textColor: '#E74C3C'
+          }
+        } 
+        // Show warning if we're within 1 hour of booking start
+        else if (now >= warningStart) {
+          return { 
+            label: `Available for ${timeUntilReservation} min`, 
+            sub: `Reserved at ${bookingStart.toLocaleTimeString('sv-SE', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}`, 
+            color: 'green',
+            bgColor: '#E6F4EA',
+            textColor: '#27AE60'
+          }
+        }
+        // If more than 1 hour away, treat as available
+        else {
+          return { 
+            label: 'Available now', 
+            sub: `Free for ${booth.slotLengthMinutes || 45} min`, 
+            color: 'green',
+            bgColor: '#E6F4EA',
+            textColor: '#27AE60'
+          }
+        }
+      }
+      // If no next booking, treat as available
       return { 
-        label: `Reserved until ${next?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`, 
-        sub: 'Next slot available afterward', 
-        color: 'red',
-        bgColor: '#FCE8E6',
-        textColor: '#E74C3C'
+        label: 'Available now', 
+        sub: `Free for ${booth.slotLengthMinutes || 45} min`, 
+        color: 'green',
+        bgColor: '#E6F4EA',
+        textColor: '#27AE60'
       }
     case 'maintenance':
       return { 
@@ -205,22 +250,44 @@ export default function MobileMapSection({ userId }: { userId?: string } = {}) {
   }, [])
 
   // Helper functions for booth rendering
-  const getBoothIcon = (status: string) => {
-    const colors = {
-      available: '#2ECC71', // Green
-      busy: '#F1C40F',      // Yellow
-      prebooked: '#E74C3C', // Red
-      maintenance: '#95A5A6' // Gray
+  const getBoothIcon = (booth: EnhancedBooth) => {
+    const now = new Date()
+    const next = booth.next_available_at ? new Date(booth.next_available_at) : null
+    
+    // Determine actual status color based on prebooked logic
+    let actualColor = '#2ECC71' // Default green
+    
+    if (booth.status === 'prebooked' && next) {
+      const bookingStart = new Date(next);
+      const warningStart = new Date(bookingStart.getTime() - 60 * 60000); // 1 hour before booking
+      const reservationStart = new Date(bookingStart.getTime() - 30 * 60000); // 30 minutes before booking
+      
+      if (now >= reservationStart) {
+        // Within 30 minutes - red (actually reserved)
+        actualColor = '#E74C3C'
+      } else if (now >= warningStart) {
+        // Within 1 hour - green (available with warning)
+        actualColor = '#2ECC71'
+      } else {
+        // More than 1 hour - green (available)
+        actualColor = '#2ECC71'
+      }
+    } else {
+      // Use standard colors for other statuses
+      const colors = {
+        available: '#2ECC71', // Green
+        busy: '#F1C40F',      // Yellow
+        maintenance: '#95A5A6' // Gray
+      }
+      actualColor = colors[booth.status as keyof typeof colors] || '#2E6A9C'
     }
-
-    const color = colors[status as keyof typeof colors] || '#2E6A9C'
 
     // Use simple circle markers for better visibility
     return {
       url: 'data:image/svg+xml;utf8,' +
         encodeURIComponent(
           `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="16" cy="16" r="12" fill="${color}" stroke="white" stroke-width="4"/>
+            <circle cx="16" cy="16" r="12" fill="${actualColor}" stroke="white" stroke-width="4"/>
           </svg>`
         ),
       scaledSize: new google.maps.Size(32, 32),
@@ -303,7 +370,7 @@ export default function MobileMapSection({ userId }: { userId?: string } = {}) {
             position: { lat: booth.lat, lng: booth.lng },
             map: mapInstanceRef.current,
             title: booth.name,
-            icon: getBoothIcon(booth.status),
+            icon: getBoothIcon(booth),
             animation: google.maps.Animation.DROP,
           })
 

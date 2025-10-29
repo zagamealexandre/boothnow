@@ -14,6 +14,39 @@ export const metadata = {
     shortcut: '/favicon.ico',
     apple: '/favicon.ico',
   },
+  openGraph: {
+    title: 'KUBO – Focus Space, On Demand',
+    description: 'Private business booths. Calm, premium and on-demand workspaces across the city.',
+    url: 'https://boothnow.app',
+    siteName: 'KUBO',
+    images: [
+      {
+        url: '/images/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'KUBO - Focus Space, On Demand',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'KUBO – Focus Space, On Demand',
+    description: 'Private business booths. Calm, premium and on-demand workspaces across the city.',
+    images: ['/images/og-image.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 }
 
 export default function RootLayout({

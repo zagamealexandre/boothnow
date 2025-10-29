@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create OG Image for KUBO</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .og-image {
+            width: 1200px;
+            height: 630px;
+            background: linear-gradient(135deg, #2E6A9C 0%, #1a4a6b 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .logo {
+            font-size: 120px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .title {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .subtitle {
+            font-size: 24px;
+            opacity: 0.9;
+            text-align: center;
+            max-width: 800px;
+        }
+        .instructions {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #2E6A9C;
+        }
+        .instructions ol {
+            line-height: 1.6;
+        }
+        .download-btn {
+            display: inline-block;
+            background: #2E6A9C;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>KUBO Social Media Image Generator</h1>
+        
+        <div class="og-image" id="ogImage">
+            <div class="logo">K</div>
+            <div class="title">KUBO</div>
+            <div class="subtitle">Focus Space, On Demand</div>
+        </div>
+        
+        <div class="instructions">
+            <h3>How to create your social media image:</h3>
+            <ol>
+                <li>Right-click on the blue image above</li>
+                <li>Select "Save image as..." or "Copy image"</li>
+                <li>Save it as <code>og-image.png</code> in your <code>web/public/images/</code> folder</li>
+                <li>Make sure the image is exactly 1200x630 pixels</li>
+                <li>Test the link sharing on Messenger, WhatsApp, etc.</li>
+            </ol>
+            
+            <h3>Alternative: Use a design tool</h3>
+            <p>You can also create a more professional image using:</p>
+            <ul>
+                <li><strong>Canva:</strong> Use their social media post template (1200x630)</li>
+                <li><strong>Figma:</strong> Create a custom design with your branding</li>
+                <li><strong>Photoshop:</strong> Design a high-quality image</li>
+            </ul>
+            
+            <h3>Image requirements:</h3>
+            <ul>
+                <li>Size: 1200x630 pixels (1.91:1 ratio)</li>
+                <li>Format: PNG or JPG</li>
+                <li>File size: Under 1MB for best performance</li>
+                <li>Include your KUBO logo and branding</li>
+                <li>Make it readable on mobile devices</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Add a subtle animation to make it more engaging
+        const logo = document.querySelector('.logo');
+        let scale = 1;
+        let direction = 1;
+        
+        setInterval(() => {
+            scale += direction * 0.01;
+            if (scale > 1.05) direction = -1;
+            if (scale < 0.95) direction = 1;
+            logo.style.transform = `scale(${scale})`;
+        }, 100);
+    </script>
+</body>
+</html>

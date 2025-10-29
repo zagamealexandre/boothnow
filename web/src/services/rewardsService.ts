@@ -45,6 +45,90 @@ export interface RewardUsageHistory {
 }
 
 class RewardsService {
+  // Award points to a user (by Clerk user id)
+  async addPoints(
+    clerkUserId: string,
+    amount: number,
+    source: string,
+    sourceId?: string,
+    description?: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      if (!amount || amount <= 0) {
+        return { success: false, error: 'Invalid amount' }
+      }
+
+      // Look up internal user id
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('clerk_user_id', clerkUserId)
+        .single()
+
+      if (userError || !user) {
+        return { success: false, error: 'User not found' }
+      }
+
+      // Record an earn transaction for audit and to support virtual balance
+      const { error: txError } = await supabase
+        .from('points_transactions')
+        .insert({
+          user_id: user.id,
+          amount,
+          transaction_type: 'earned',
+          source,
+          source_id: sourceId,
+          description: description || `Points earned from ${source}`,
+        })
+
+      if (txError) {
+        console.warn('⚠️ RewardsService - addPoints: failed inserting transaction', txError)
+      }
+
+      // Try to update persisted balance if present; if not, create it
+      const { data: existing, error: pointsReadError } = await supabase
+        .from('user_points')
+        .select('available_points, lifetime_earned')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (!pointsReadError && existing) {
+        const { error: updateError } = await supabase
+          .from('user_points')
+          .update({
+            available_points: (existing.available_points || 0) + amount,
+            lifetime_earned: (existing.lifetime_earned || 0) + amount,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', user.id)
+
+        if (updateError) {
+          console.warn('⚠️ RewardsService - addPoints: failed updating user_points', updateError)
+        }
+      } else {
+        // Insert a starting balance row if it does not exist
+        const { error: insertError } = await supabase
+          .from('user_points')
+          .insert({
+            user_id: user.id,
+            available_points: amount,
+            lifetime_earned: amount,
+            total_points: amount,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+
+        if (insertError) {
+          console.warn('⚠️ RewardsService - addPoints: failed inserting user_points', insertError)
+        }
+      }
+
+      return { success: true }
+    } catch (e: any) {
+      console.error('❌ RewardsService - addPoints: Exception', e)
+      return { success: false, error: 'Failed to add points' }
+    }
+  }
   // Get user's current points
   async getUserPoints(clerkUserId: string): Promise<UserPoints | null> {
     try {

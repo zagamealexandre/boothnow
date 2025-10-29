@@ -19,8 +19,10 @@ export interface Reward {
   points_required: number
   is_active: boolean
   time_restriction?: {
-    start: string
-    end: string
+    start_hour?: number
+    end_hour?: number
+    start?: string
+    end?: string
   }
 }
 
@@ -77,7 +79,7 @@ class RewardsService {
           amount,
           transaction_type: 'earned',
           source,
-          source_id: sourceId,
+          source_id: sourceId || null,
           description: description || `Points earned from ${source}`,
         })
 
@@ -350,7 +352,7 @@ class RewardsService {
           amount: -reward.cost,
           transaction_type: 'spent',
           source: 'reward_claim',
-          source_id: String(rewardId),
+          source_id: null, // No specific source ID for reward claims
           description: `Claimed reward ${rewardId}`
         })
 
@@ -392,11 +394,23 @@ class RewardsService {
         return { success: false, error: 'User not found' };
       }
 
+      // Get the user reward to get the reward_id
+      const { data: userReward, error: userRewardError } = await supabase
+        .from('user_rewards')
+        .select('reward_id')
+        .eq('id', userRewardId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (userRewardError || !userReward) {
+        return { success: false, error: 'User reward not found' };
+      }
+
       // Update user reward as used
       const { error: updateError } = await supabase
         .from('user_rewards')
         .update({
-          is_used: true,
+          status: 'used',
           used_at: new Date().toISOString()
         })
         .eq('id', userRewardId)
@@ -411,7 +425,8 @@ class RewardsService {
         .from('reward_usage_history')
         .insert({
           user_id: user.id,
-          reward_id: userRewardId,
+          user_reward_id: userRewardId,
+          reward_id: userReward.reward_id,
           used_at: new Date().toISOString()
         })
 
@@ -464,14 +479,25 @@ class RewardsService {
 
 
   // Check if reward time restriction is active
-  isRewardTimeActive(timeRestriction?: { start: string; end: string }): boolean {
+  isRewardTimeActive(timeRestriction?: any): boolean {
     if (!timeRestriction) return true;
 
-    const now = new Date();
-    const start = new Date(timeRestriction.start);
-    const end = new Date(timeRestriction.end);
+    // Handle both old format (start/end) and new format (start_hour/end_hour)
+    if (timeRestriction.start_hour !== undefined && timeRestriction.end_hour !== undefined) {
+      const now = new Date();
+      const currentHour = now.getHours();
+      return currentHour >= timeRestriction.start_hour && currentHour < timeRestriction.end_hour;
+    }
 
-    return now >= start && now <= end;
+    // Fallback to old format
+    if (timeRestriction.start && timeRestriction.end) {
+      const now = new Date();
+      const start = new Date(timeRestriction.start);
+      const end = new Date(timeRestriction.end);
+      return now >= start && now <= end;
+    }
+
+    return true;
   }
 }
 

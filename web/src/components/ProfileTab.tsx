@@ -109,6 +109,7 @@ export default function ProfileTab({
   const [toastMessage, setToastMessage] = useState('');
   const [rewardsTab, setRewardsTab] = useState<'available' | 'my-rewards' | 'past-rewards'>('available');
   const [loading, setLoading] = useState(false);
+  const [claimingRewards, setClaimingRewards] = useState<Set<number>>(new Set());
   const qrCodeRef = useRef<HTMLCanvasElement>(null);
 
   // Initialize user points on first load
@@ -124,6 +125,12 @@ export default function ProfileTab({
         if (userPointsData && userPointsData.points === 0 && userPointsData.total_earned === 0) {
           console.log('🔧 ProfileTab: No points found, initializing with welcome bonus');
           await pointsService.initializeUserPoints(userId);
+          // Reload points after initialization
+          const updatedPoints = await rewardsService.getUserPoints(userId);
+          setUserPoints(updatedPoints);
+        } else {
+          // Set the points data for the main profile view
+          setUserPoints(userPointsData);
         }
       } catch (error) {
         console.error('❌ ProfileTab: Error initializing points:', error);
@@ -186,6 +193,24 @@ export default function ProfileTab({
     };
 
     loadRewardsData();
+  }, [userId, activeSection]);
+
+  // Refresh points when profile section becomes active (to ensure points are up to date)
+  useEffect(() => {
+    const refreshPoints = async () => {
+      if (!userId || activeSection !== 'overview') {
+        return;
+      }
+
+      try {
+        const userPointsData = await rewardsService.getUserPoints(userId);
+        setUserPoints(userPointsData);
+      } catch (error) {
+        console.error('❌ ProfileTab: Error refreshing points:', error);
+      }
+    };
+
+    refreshPoints();
   }, [userId, activeSection]);
 
   const handleProfileUpdate = async () => {
@@ -289,9 +314,9 @@ export default function ProfileTab({
       return;
     }
 
-    // Prevent multiple simultaneous claims
-    if (loading) {
-      console.log('⚠️ ProfileTab: Already processing a claim, ignoring duplicate');
+    // Prevent multiple simultaneous claims for the same reward
+    if (claimingRewards.has(rewardId)) {
+      console.log('⚠️ ProfileTab: Already processing a claim for this reward, ignoring duplicate');
       return;
     }
 
@@ -320,7 +345,8 @@ export default function ProfileTab({
     }
 
     try {
-      setLoading(true);
+      // Add this reward to the claiming set
+      setClaimingRewards(prev => new Set(prev).add(rewardId));
       console.log('🔧 ProfileTab: Calling claimReward for user:', userId, 'reward:', rewardId);
       const result = await rewardsService.claimReward(userId, rewardId);
       
@@ -361,7 +387,12 @@ export default function ProfileTab({
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } finally {
-      setLoading(false);
+      // Remove this reward from the claiming set
+      setClaimingRewards(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(rewardId);
+        return newSet;
+      });
     }
   };
 
@@ -621,7 +652,7 @@ export default function ProfileTab({
                 <span className="font-medium text-gray-900">Points Balance</span>
               </div>
               <div className="text-2xl font-bold text-gray-900">
-                {(userStats?.total_sessions || 0) * 10}
+                {userPoints?.points || 0}
               </div>
             </div>
             <p className="text-xs text-gray-500 mt-1">Earn 10 points per session</p>
@@ -1235,11 +1266,11 @@ export default function ProfileTab({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">{userData.availablePoints.toLocaleString()}</div>
-                    <div className="text-sm text-gray-600">Points Earned</div>
+                    <div className="text-2xl font-bold text-orange-600">{userPoints?.points || 0}</div>
+                    <div className="text-sm text-gray-600">Points Available</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{userData.myRewards.length}</div>
+                    <div className="text-2xl font-bold text-green-600">{userRewards.filter(ur => ur.status === 'active').length}</div>
                     <div className="text-sm text-gray-600">Active Rewards</div>
                   </div>
                 </div>
@@ -1266,7 +1297,7 @@ export default function ProfileTab({
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                     }`}
                   >
-                    My Rewards ({userData.myRewards.length})
+                    My Rewards ({userRewards.filter(ur => ur.status === 'active').length})
                   </button>
                   <button
                     onClick={() => setRewardsTab('past-rewards')}
@@ -1276,7 +1307,7 @@ export default function ProfileTab({
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                     }`}
                   >
-                    Past Rewards ({userData.usageHistory.length})
+                    Past Rewards ({usageHistory.length})
                   </button>
                 </div>
               </div>
@@ -1287,63 +1318,78 @@ export default function ProfileTab({
                   <div className="space-y-4">
                     <h5 className="font-semibold text-gray-900">Available Rewards</h5>
                   <div className="grid gap-4">
-                  {mockRewards.map((reward) => {
-                    const IconComponent = reward.icon;
-                    const isTimeActive = reward.isActive ? reward.isActive() : true;
-                    const isClaimed = userRewards.some(ur => ur.reward_id === reward.id && ur.status === 'active');
-                    
-                    return (
-                      <div key={reward.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center space-x-3">
-                            <div className={`w-8 h-8 rounded-lg ${reward.iconColor} flex items-center justify-center`}>
-                              <IconComponent className={`w-4 h-4 ${reward.iconBgColor}`} />
+                  {loading ? (
+                    <div className="flex items-center justify-center p-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+                      <span className="ml-2 text-gray-600">Loading rewards...</span>
+                    </div>
+                  ) : rewards.length > 0 ? (
+                    rewards.map((reward) => {
+                      const IconComponent = iconMap[reward.partner?.toLowerCase()] || Coffee;
+                      const isTimeActive = rewardsService.isRewardTimeActive(reward.time_restriction);
+                      const isClaimed = userRewards.some(ur => ur.reward_id === reward.id && ur.status === 'active');
+                      const isUsed = userRewards.some(ur => ur.reward_id === reward.id && ur.status === 'used');
+                      
+                      return (
+                        <div key={reward.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                                <IconComponent className="w-4 h-4 text-orange-600" />
+                              </div>
+                              <h6 className="font-medium text-gray-900">{reward.title}</h6>
                             </div>
-                            <h6 className="font-medium text-gray-900">{reward.title}</h6>
-                          </div>
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                            reward.badge === 'Auto Reward' 
-                              ? 'bg-green-100 text-green-800'
-                              : isTimeActive 
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              isTimeActive 
                                 ? 'bg-green-100 text-green-800' 
                                 : 'bg-gray-100 text-gray-500'
-                          }`}>
-                            {reward.badge || (isTimeActive ? 'Available' : 'Not Available')}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-3">{reward.description}</p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-500">
-                            {reward.points_required === 0 ? 'Auto Reward' : `${reward.points_required} points`}
-                          </span>
-                          {isClaimed ? (
-                            <button 
-                              onClick={() => handleUseReward(reward.id)}
-                              className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
-                            >
-                              Use Now
-                            </button>
-                          ) : reward.points_required === 0 ? (
-                            <span className="bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm font-medium">
-                              Auto Reward
+                            }`}>
+                              {isTimeActive ? 'Available' : 'Not Available'}
                             </span>
-                          ) : (
-                            <button 
-                              onClick={() => handleClaimReward(reward.id)}
-                              disabled={loading || (reward.isActive && !reward.isActive()) || reward.points_required > userData.availablePoints}
-                              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                loading || (reward.isActive && !reward.isActive()) || reward.points_required > userData.availablePoints
-                                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                  : 'bg-orange-600 hover:bg-orange-700 text-white'
-                              }`}
-                            >
-                              {loading ? 'Claiming...' : 'Claim'}
-                            </button>
-                          )}
+                          </div>
+                          <p className="text-sm text-gray-600 mb-3">{reward.description}</p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-500">
+                              {reward.points_required === 0 ? 'Auto Reward' : `${reward.points_required} points`}
+                            </span>
+                            {isUsed ? (
+                              <span className="bg-gray-100 text-gray-500 px-4 py-2 rounded-lg text-sm font-medium">
+                                Used
+                              </span>
+                            ) : isClaimed ? (
+                              <button 
+                                onClick={() => handleUseReward(reward.id)}
+                                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                              >
+                                Use Now
+                              </button>
+                            ) : reward.points_required === 0 ? (
+                              <span className="bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm font-medium">
+                                Auto Reward
+                              </span>
+                            ) : (
+                              <button 
+                                onClick={() => handleClaimReward(reward.id)}
+                                disabled={claimingRewards.has(reward.id) || !isTimeActive || (userPoints && reward.points_required > userPoints.points)}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                  claimingRewards.has(reward.id) || !isTimeActive || (userPoints && reward.points_required > userPoints.points)
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : 'bg-orange-600 hover:bg-orange-700 text-white'
+                                }`}
+                              >
+                                {claimingRewards.has(reward.id) ? 'Claiming...' : 'Claim'}
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-10 bg-gray-50 rounded-xl border border-gray-200">
+                      <Gift className="w-12 h-12 text-gray-300 mb-4" />
+                      <p className="text-gray-600 text-lg font-medium">No rewards available.</p>
+                    </div>
+                  )}
                   </div>
                   </div>
                 </div>
@@ -1353,18 +1399,18 @@ export default function ProfileTab({
               {rewardsTab === 'my-rewards' && (
                 <div className="space-y-4">
                   <h5 className="font-semibold text-gray-900">My Rewards</h5>
-                  {userData.myRewards.length > 0 ? (
+                  {userRewards.filter(ur => ur.status === 'active').length > 0 ? (
                     <div className="grid gap-4">
-                      {userData.myRewards.map((reward) => (
-                        <div key={reward.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+                      {userRewards.filter(ur => ur.status === 'active').map((userReward) => (
+                        <div key={userReward.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
-                              <h6 className="font-semibold text-gray-900 mb-1">{reward.title}</h6>
-                              <p className="text-gray-600 text-sm mb-1">{reward.partner}</p>
-                              <p className="text-gray-500 text-xs">Expires {reward.expiresAt}</p>
+                              <h6 className="font-semibold text-gray-900 mb-1">{userReward.reward?.title || 'Unknown Reward'}</h6>
+                              <p className="text-gray-600 text-sm mb-1">{userReward.reward?.partner || 'Unknown Partner'}</p>
+                              <p className="text-gray-500 text-xs">Expires {new Date(userReward.expires_at).toLocaleDateString()}</p>
                             </div>
                             <button
-                              onClick={() => handleUseReward(reward.id)}
+                              onClick={() => handleUseReward(userReward.reward_id)}
                               className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                             >
                               Use Now
@@ -1386,15 +1432,15 @@ export default function ProfileTab({
               {rewardsTab === 'past-rewards' && (
                 <div className="space-y-4">
                   <h5 className="font-semibold text-gray-900">Past Rewards</h5>
-                  {userData.usageHistory.length > 0 ? (
+                  {usageHistory.length > 0 ? (
                     <div className="grid gap-4">
-                      {userData.usageHistory.map((item, index) => (
+                      {usageHistory.map((item, index) => (
                         <div key={index} className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
-                              <h6 className="font-semibold text-gray-900 mb-1">{item.title}</h6>
-                              <p className="text-gray-600 text-sm mb-1">From {item.partner}</p>
-                              <p className="text-gray-500 text-xs">Used on: {new Date(item.usedDate).toLocaleDateString()}</p>
+                              <h6 className="font-semibold text-gray-900 mb-1">Used Reward</h6>
+                              <p className="text-gray-600 text-sm mb-1">From 7-Eleven</p>
+                              <p className="text-gray-500 text-xs">Used on: {new Date(item.used_at).toLocaleDateString()}</p>
                             </div>
                             <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">
                               Used

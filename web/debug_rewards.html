@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Rewards</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Debug Rewards System</h1>
+    <div id="output"></div>
+    
+    <script>
+        // Initialize Supabase client
+        const supabaseUrl = 'https://placeholder.supabase.co'; // Replace with actual URL
+        const supabaseKey = 'placeholder-key'; // Replace with actual key
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        
+        async function debugRewards() {
+            const output = document.getElementById('output');
+            
+            try {
+                // Test 1: Check rewards catalog
+                console.log('🔍 Testing rewards catalog...');
+                const { data: rewards, error: rewardsError } = await supabase
+                    .from('rewards_catalog')
+                    .select('*')
+                    .eq('is_active', true);
+                
+                if (rewardsError) {
+                    output.innerHTML += `<p>❌ Error fetching rewards: ${rewardsError.message}</p>`;
+                    return;
+                }
+                
+                output.innerHTML += `<p>✅ Found ${rewards.length} rewards in catalog</p>`;
+                
+                if (rewards.length > 0) {
+                    output.innerHTML += `<h3>Sample Reward:</h3>`;
+                    output.innerHTML += `<pre>${JSON.stringify(rewards[0], null, 2)}</pre>`;
+                }
+                
+                // Test 2: Check user points table
+                console.log('🔍 Testing user points...');
+                const { data: points, error: pointsError } = await supabase
+                    .from('user_points')
+                    .select('*')
+                    .limit(5);
+                
+                if (pointsError) {
+                    output.innerHTML += `<p>❌ Error fetching points: ${pointsError.message}</p>`;
+                } else {
+                    output.innerHTML += `<p>✅ Found ${points.length} user points records</p>`;
+                }
+                
+                // Test 3: Check user rewards table
+                console.log('🔍 Testing user rewards...');
+                const { data: userRewards, error: userRewardsError } = await supabase
+                    .from('user_rewards')
+                    .select('*')
+                    .limit(5);
+                
+                if (userRewardsError) {
+                    output.innerHTML += `<p>❌ Error fetching user rewards: ${userRewardsError.message}</p>`;
+                } else {
+                    output.innerHTML += `<p>✅ Found ${userRewards.length} user rewards records</p>`;
+                }
+                
+            } catch (error) {
+                output.innerHTML += `<p>❌ Exception: ${error.message}</p>`;
+                console.error('Debug error:', error);
+            }
+        }
+        
+        // Run debug when page loads
+        debugRewards();
+    </script>
+</body>
+</html>

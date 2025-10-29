@@ -82,7 +82,13 @@ function RewardCard({ reward, onClaim }: RewardCardProps) {
 }
 
 interface MyRewardCardProps {
-  reward: typeof mockUserData.myRewards[0];
+  reward: {
+    id: string;
+    title: string;
+    partner: string;
+    expiresAt: string;
+    status: string;
+  };
   onUse: (rewardId: number) => void;
 }
 
@@ -96,7 +102,7 @@ function MyRewardCard({ reward, onUse }: MyRewardCardProps) {
           <p className="text-gray-500 text-xs">Expires {reward.expiresAt}</p>
         </div>
         <button
-          onClick={() => onUse(reward.id)}
+          onClick={() => onUse(parseInt(reward.id))}
           className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
         >
           Use Now
@@ -115,7 +121,14 @@ export default function Rewards() {
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrCodeReward, setQrCodeReward] = useState<Reward | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
-  const [userData, setUserData] = useState(mockUserData);
+  const [userData, setUserData] = useState({
+    availablePoints: 0,
+    memberTier: "Bronze",
+    sessionsCompleted: 0,
+    rewardsUsed: 0,
+    myRewards: [],
+    usageHistory: []
+  });
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [userRewards, setUserRewards] = useState<UserReward[]>([]);
   const [usageHistory, setUsageHistory] = useState<RewardUsageHistory[]>([]);
@@ -157,7 +170,7 @@ export default function Rewards() {
               title: ur.reward?.title || 'Unknown Reward',
               partner: ur.reward?.partner || 'Unknown',
               expiresAt: ur.used_at ? new Date(ur.used_at).toISOString().split('T')[0] : 'Never',
-              status: ur.is_used ? 'used' : 'available'
+              status: ur.status
             })),
             usageHistory: usageHistoryData.map(uh => ({
               id: uh.reward_id.toString(),
@@ -259,7 +272,7 @@ export default function Rewards() {
             title: ur.reward?.title || 'Unknown Reward',
             partner: ur.reward?.partner || 'Unknown',
             expiresAt: ur.used_at ? new Date(ur.used_at).toISOString().split('T')[0] : 'Never',
-            status: ur.is_used ? 'used' : 'available'
+            status: ur.status
           }))
         }));
         
@@ -328,7 +341,7 @@ export default function Rewards() {
             title: ur.reward?.title || 'Unknown Reward',
             partner: ur.reward?.partner || 'Unknown',
             expiresAt: ur.used_at ? new Date(ur.used_at).toISOString().split('T')[0] : 'Never',
-            status: ur.is_used ? 'used' : 'available'
+            status: ur.status
           })),
           usageHistory: usageHistoryData.map(uh => ({
             id: uh.reward_id.toString(),

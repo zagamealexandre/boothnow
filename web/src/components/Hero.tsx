@@ -3,12 +3,14 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import { SignInButton, SignedIn, SignedOut } from '@clerk/nextjs'
 
 export default function Hero() {
   const [mounted, setMounted] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const router = useRouter()
   
   useEffect(() => setMounted(true), [])
 
@@ -32,7 +34,17 @@ export default function Hero() {
               </SignInButton>
             </SignedOut>
             <SignedIn>
-              <Link href="/dashboard" className="btn-outline-dark border-kubo-textDark text-kubo-textDark hover:bg-kubo-textDark hover:text-white font-body">DASHBOARD</Link>
+              <Link 
+                href="/dashboard" 
+                className="btn-outline-dark border-kubo-textDark text-kubo-textDark hover:bg-kubo-textDark hover:text-white font-body"
+                onClick={(e) => {
+                  // Ensure navigation even if Link is intercepted by any overlay
+                  e.preventDefault()
+                  router.push('/dashboard')
+                }}
+              >
+                DASHBOARD
+              </Link>
             </SignedIn>
           </nav>
 
@@ -99,13 +111,17 @@ export default function Hero() {
                          </SignInButton>
                        </SignedOut>
                        <SignedIn>
-                         <Link 
-                           href="/dashboard" 
-                           className="btn-outline-dark border-kubo-textDark text-kubo-textDark hover:bg-kubo-textDark hover:text-white w-full font-body uppercase tracking-wide px-6 py-4 text-lg inline-block text-center" 
-                           onClick={() => setMobileMenuOpen(false)}
-                         >
-                           DASHBOARD
-                         </Link>
+                        <Link 
+                          href="/dashboard" 
+                          className="btn-outline-dark border-kubo-textDark text-kubo-textDark hover:bg-kubo-textDark hover:text-white w-full font-body uppercase tracking-wide px-6 py-4 text-lg inline-block text-center" 
+                          onClick={(e) => {
+                            e.preventDefault()
+                            setMobileMenuOpen(false)
+                            router.push('/dashboard')
+                          }}
+                        >
+                          DASHBOARD
+                        </Link>
                        </SignedIn>
                      </div>
                    </nav>

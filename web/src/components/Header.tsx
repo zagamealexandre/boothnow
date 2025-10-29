@@ -39,7 +39,7 @@ export function Header() {
                 <Link href="/dashboard" className="btn-primary">
                   Dashboard
                 </Link>
-                <UserButton afterSignOutUrl="/" />
+                <UserButton />
               </div>
             ) : (
               <div className="flex items-center space-x-4">

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { SignOutButton, useAuth } from '@clerk/nextjs'
+import { SignOutButton, useAuth, useClerk } from '@clerk/nextjs'
+import { useRouter } from 'next/navigation'
 import { MapPin, Clock, Wifi, Shield, LocateFixed, Search, X, Settings, Bell, Users, QrCode, User, Ticket, LifeBuoy, Gift, Star, ShoppingBag, Coffee, CreditCard, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { boothService, Booth } from '../services/boothService'
@@ -81,6 +82,13 @@ interface DashboardProps {
 export default function Dashboard({ clerkUser }: DashboardProps) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
   const { awardBoothSessionPoints, awardAdvanceBookingPoints } = usePointsEarning()
+  const { signOut } = useClerk()
+  const router = useRouter()
+  
+  const handleSignOut = async () => {
+    await signOut()
+    router.push('/')
+  }
   
   if (!apiKey) {
     console.error('Google Maps API key not found. Please set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in your environment variables.')
@@ -593,11 +601,12 @@ export default function Dashboard({ clerkUser }: DashboardProps) {
                       <Link href="/rewards" className="flex items-center px-4 py-2 text-sm text-kubo-textDark hover:bg-kubo-border font-body">
                         <Gift className="w-4 h-4 mr-2" /> Rewards
                       </Link>
-                      <SignOutButton>
-                        <button className="flex items-center w-full text-left px-4 py-2 text-sm text-kubo-textDark hover:bg-kubo-border font-body">
-                          <X className="w-4 h-4 mr-2" /> Log out
-                        </button>
-                      </SignOutButton>
+                      <button 
+                        onClick={handleSignOut}
+                        className="flex items-center w-full text-left px-4 py-2 text-sm text-kubo-textDark hover:bg-kubo-border font-body"
+                      >
+                        <X className="w-4 h-4 mr-2" /> Log out
+                      </button>
                     </div>
                   )}
                 </div>

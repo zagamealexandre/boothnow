@@ -182,12 +182,10 @@ export default function MobileMapSection({ userId }: { userId?: string } = {}) {
         setIsLoading(true)
         const fetchedBooths = await boothService.fetchBooths()
         setBooths(fetchedBooths.length > 0 ? fetchedBooths : mockBooths)
-        console.log('✅ MobileMapSection: Booths loaded, count:', fetchedBooths.length > 0 ? fetchedBooths.length : mockBooths.length)
       } catch (error) {
         console.error('❌ MobileMapSection: Error loading booths:', error)
         console.error('❌ MobileMapSection: SUPABASE NOT CONFIGURED!')
         console.error('❌ MobileMapSection: Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file')
-        console.log('🔄 MobileMapSection: Using mock booths as fallback')
         setBooths(mockBooths)
       } finally {
         setIsLoading(false)
@@ -265,7 +263,6 @@ export default function MobileMapSection({ userId }: { userId?: string } = {}) {
   // Effect to add markers when booths change and map is ready
   useEffect(() => {
     if (mapReady && mapInstanceRef.current && booths.length > 0) {
-      console.log('🗺️ MobileMapSection: Adding markers to map, booths count:', booths.length)
       
       // Clear existing markers
       if ((window as any).boothMarkers) {
@@ -307,11 +304,8 @@ export default function MobileMapSection({ userId }: { userId?: string } = {}) {
       })
       
       ;(window as any).boothMarkers = markers
-      console.log('✅ MobileMapSection: Markers added successfully, count:', markers.length)
     } else if (!mapReady) {
-      console.log('⏳ MobileMapSection: Map not ready yet, waiting...')
     } else if (!booths.length) {
-      console.log('⏳ MobileMapSection: No booths loaded yet, waiting...')
     }
   }, [booths, userLocation, mapReady])
 
@@ -362,7 +356,6 @@ export default function MobileMapSection({ userId }: { userId?: string } = {}) {
       
       // Mark map as ready
       setMapReady(true)
-      console.log('✅ MobileMapSection: Map initialized and ready')
 
       // Compute distance in meters
       const dist = (a: google.maps.LatLngLiteral, b: google.maps.LatLngLiteral) => {
@@ -425,7 +418,6 @@ export default function MobileMapSection({ userId }: { userId?: string } = {}) {
   useEffect(() => {
     return () => {
       setMapReady(false)
-      console.log('🔄 MobileMapSection: Component unmounting, resetting map state')
     }
   }, [])
 
@@ -448,7 +440,6 @@ export default function MobileMapSection({ userId }: { userId?: string } = {}) {
           isOpen={showQRReader}
           onClose={closeQRReader}
           onBookingSuccess={(reservationId) => {
-            console.log('✅ MobileMapSection - Booking successful:', reservationId)
             closeQRReader()
             
             // Update booth status in state
@@ -479,7 +470,6 @@ export default function MobileMapSection({ userId }: { userId?: string } = {}) {
           isOpen={showScheduler}
           onClose={closeScheduler}
           onBookingSuccess={(reservationId) => {
-            console.log('✅ MobileMapSection - Pre-booking successful:', reservationId)
             closeScheduler()
             
             // Trigger a global event to refresh bookings in Dashboard

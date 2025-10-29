@@ -35,7 +35,6 @@ export function AdminHeader() {
 
             {/* User Menu */}
             <UserButton 
-              afterSignOutUrl="/"
               appearance={{
                 elements: {
                   avatarBox: "w-8 h-8"

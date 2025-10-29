@@ -35,14 +35,14 @@ export default function FeaturesGrid() {
           {items.map((item) => {
             const IconComponent = item.icon
             return (
-              <div key={item.title} className="bg-white border border-kubo-border rounded-2xl p-6 text-center hover:shadow-lg transition-shadow">
+              <div key={item.title} className="bg-kubo-secondary rounded-2xl p-6 text-center hover:shadow-lg transition-shadow">
                 <div className="flex justify-center mb-4">
-                  <div className="w-12 h-12 rounded-full bg-kubo-secondary/10 flex items-center justify-center">
-                    <IconComponent className="h-6 w-6 text-kubo-secondary" />
+                  <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                    <IconComponent className="h-6 w-6 text-white" />
                   </div>
                 </div>
-                <h3 className="font-heading text-lg tracking-[0.16em] text-kubo-textDark mb-2">{item.title}</h3>
-                <p className="text-kubo-textGrey text-sm font-body">{item.text}</p>
+                <h3 className="font-heading text-lg tracking-[0.16em] text-white mb-2">{item.title}</h3>
+                <p className="text-white text-sm font-body">{item.text}</p>
               </div>
             )
           })}

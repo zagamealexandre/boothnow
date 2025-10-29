@@ -411,7 +411,6 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
       
       // Mark map as ready
       setMapReady(true)
-      console.log('✅ MapSection: Map initialized and ready')
 
       // Compute distance in meters
       const dist = (a: google.maps.LatLngLiteral, b: google.maps.LatLngLiteral) => {
@@ -519,7 +518,6 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
   // Effect to add markers when map becomes ready and booths are available
   useEffect(() => {
     if (mapReady && mapInstanceRef.current && booths.length > 0) {
-      console.log('🗺️ MapSection: Adding markers to map, booths count:', booths.length)
       
       // Clear existing markers
       if ((window as any).boothMarkers) {
@@ -580,11 +578,8 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
       })
       
       ;(window as any).boothMarkers = markers
-      console.log('✅ MapSection: Markers added successfully, count:', markers.length)
     } else if (!mapReady) {
-      console.log('⏳ MapSection: Map not ready yet, waiting...')
     } else if (!booths.length) {
-      console.log('⏳ MapSection: No booths loaded yet, waiting...')
     }
   }, [mapReady, booths, selectedStatus, userLocation])
 
@@ -737,7 +732,6 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
 
       {/* Debug modal state */}
       {(() => {
-        console.log('🔧 MapSection - Modal state:', { showQRReader, showScheduler, currentBoothId })
         return null
       })()}
       
@@ -747,7 +741,6 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
           isOpen={showQRReader}
           onClose={closeQRReader}
           onBookingSuccess={(reservationId) => {
-            console.log('✅ Booking successful:', reservationId)
             closeQRReader()
             
             // Update booth status in state
@@ -778,7 +771,6 @@ export function MapSection({ userId, filterStatus = 'all', compact = false, hide
           isOpen={showScheduler}
           onClose={closeScheduler}
           onBookingSuccess={(reservationId) => {
-            console.log('✅ Pre-booking successful:', reservationId)
             closeScheduler()
             
             // Trigger a global event to refresh bookings in Dashboard

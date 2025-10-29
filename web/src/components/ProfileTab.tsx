@@ -32,13 +32,13 @@ import {
   Check
 } from 'lucide-react';
 import QRCode from 'qrcode';
-import { SignOutButton } from '@clerk/nextjs';
+import { SignOutButton, useClerk } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { UserProfile, UserStats, SessionHistory } from '../services/userService';
 import { rewardsService, Reward, UserReward, RewardUsageHistory, UserPoints } from '../services/rewardsService';
 import { pointsService } from '../services/pointsService';
 import { mockRewards, mockUserData, iconMap } from '../data/rewardsData';
-import PointsEarningDemo from './PointsEarningDemo';
 
 interface Subscription {
   id: string;
@@ -67,6 +67,13 @@ export default function ProfileTab({
   onProfileUpdate,
   initialActiveSection = 'overview'
 }: ProfileTabProps) {
+  const { signOut } = useClerk()
+  const router = useRouter()
+  
+  const handleSignOut = async () => {
+    await signOut()
+    router.push('/')
+  }
   const { userId } = useAuth();
   const [activeSection, setActiveSection] = useState(initialActiveSection);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -218,10 +225,38 @@ export default function ProfileTab({
   };
 
   const getActivityLevel = (score: number) => {
-    if (score >= 80) return { level: 'Expert', color: 'text-green-600', bg: 'bg-green-50' };
-    if (score >= 60) return { level: 'Regular', color: 'text-blue-600', bg: 'bg-blue-50' };
-    if (score >= 40) return { level: 'Casual', color: 'text-yellow-600', bg: 'bg-yellow-50' };
-    return { level: 'Newcomer', color: 'text-gray-600', bg: 'bg-gray-50' };
+    if (score >= 80) return { 
+      level: 'Booth Master', 
+      color: 'text-yellow-600', 
+      bg: 'bg-yellow-50',
+      tier: 'GOLD',
+      nextTier: null,
+      sessionsNeeded: 0
+    };
+    if (score >= 60) return { 
+      level: 'Booth Pro', 
+      color: 'text-blue-600', 
+      bg: 'bg-blue-50',
+      tier: 'SILVER',
+      nextTier: 'GOLD',
+      sessionsNeeded: 20
+    };
+    if (score >= 40) return { 
+      level: 'Booth Regular', 
+      color: 'text-green-600', 
+      bg: 'bg-green-50',
+      tier: 'BRONZE',
+      nextTier: 'SILVER',
+      sessionsNeeded: 15
+    };
+    return { 
+      level: 'Booth Newcomer', 
+      color: 'text-gray-600', 
+      bg: 'bg-gray-50',
+      tier: 'STARTER',
+      nextTier: 'BRONZE',
+      sessionsNeeded: 5
+    };
   };
 
   const activityScore = getActivityScore();
@@ -495,26 +530,101 @@ export default function ProfileTab({
           </button>
         </div>
 
-        {/* Activity Score Card */}
-        <div className={`${activityLevel.bg} rounded-lg p-4 border border-gray-200`}>
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center space-x-2">
-              <MapPin className="w-5 h-5 text-gray-600" />
-              <span className="font-medium text-gray-900">Activity Score</span>
+        {/* Enhanced Activity Score Card */}
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-gray-200 shadow-sm">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                <Star className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 text-lg">Booth Loyalty Hub</h3>
+                <p className="text-sm text-gray-600">{activityLevel.tier} MEMBER</p>
+              </div>
             </div>
-            <span className={`text-sm font-semibold ${activityLevel.color}`}>
-              {activityLevel.level}
-            </span>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-gray-900">{userStats?.total_sessions || 0}</div>
+              <div className="text-xs text-gray-500">Sessions</div>
+            </div>
           </div>
-          <p className="text-sm text-gray-600 mb-3">Understand your workspace usage</p>
-          <div className="flex items-center space-x-2">
-            <div className="flex-1 bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${activityScore}%` }}
-              />
+
+          {/* Progress Bar with Visual Elements */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">Progress to {activityLevel.nextTier || 'MAX'}</span>
+              <span className="text-sm font-medium text-gray-700">
+                {userStats?.total_sessions || 0}/{activityLevel.sessionsNeeded || userStats?.total_sessions || 0}
+              </span>
             </div>
-            <span className="text-sm font-medium text-gray-700">{activityScore}/100</span>
+            <div className="relative">
+              <div className="flex items-center justify-between mb-1">
+                <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                  <div className="w-4 h-4 bg-gray-400 rounded"></div>
+                </div>
+                <div className="flex-1 bg-gray-200 rounded-full h-3 mx-2">
+                  <div 
+                    className={`h-3 rounded-full transition-all duration-500 ${
+                      activityLevel.tier === 'GOLD' ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                      activityLevel.tier === 'SILVER' ? 'bg-gradient-to-r from-gray-300 to-gray-500' :
+                      activityLevel.tier === 'BRONZE' ? 'bg-gradient-to-r from-orange-400 to-orange-600' :
+                      'bg-gradient-to-r from-blue-400 to-blue-600'
+                    }`}
+                    style={{ width: `${Math.min((userStats?.total_sessions || 0) / (activityLevel.sessionsNeeded || 1) * 100, 100)}%` }}
+                  />
+                </div>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  activityLevel.tier === 'GOLD' ? 'bg-yellow-400' :
+                  activityLevel.tier === 'SILVER' ? 'bg-gray-300' :
+                  activityLevel.tier === 'BRONZE' ? 'bg-orange-400' :
+                  'bg-blue-400'
+                }`}>
+                  <div className={`w-4 h-4 rounded ${
+                    activityLevel.tier === 'GOLD' ? 'bg-yellow-600' :
+                    activityLevel.tier === 'SILVER' ? 'bg-gray-500' :
+                    activityLevel.tier === 'BRONZE' ? 'bg-orange-600' :
+                    'bg-blue-600'
+                  }`}></div>
+                </div>
+              </div>
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>0</span>
+                <span className="font-medium">{activityLevel.nextTier || 'MAX'} TIER</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Benefits Section */}
+          <div className="mb-4">
+            <h4 className="font-bold text-gray-900 mb-3">YOUR BENEFITS</h4>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <Check className="w-4 h-4 text-green-500" />
+                <span className="text-sm text-gray-700">Priority booking during peak hours</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="w-4 h-4 text-green-500" />
+                <span className="text-sm text-gray-700">Earn points for every session</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="w-4 h-4 text-green-500" />
+                <span className="text-sm text-gray-700">Exclusive discounts on prepaid plans</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Points Display */}
+          <div className="bg-white rounded-lg p-4 border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Star className="w-5 h-5 text-yellow-500" />
+                <span className="font-medium text-gray-900">Points Balance</span>
+              </div>
+              <div className="text-2xl font-bold text-gray-900">
+                {(userStats?.total_sessions || 0) * 10}
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Earn 10 points per session</p>
           </div>
         </div>
       </div>
@@ -579,7 +689,7 @@ export default function ProfileTab({
               <div className="flex items-center space-x-3">
                 <User className="w-5 h-5 text-gray-400" />
                 <span className="text-gray-900">Invite friends</span>
-                <span className="text-sm text-gray-500">Get SEK 50,00 in ride credits</span>
+                <span className="text-sm text-gray-500">Get SEK 50,00 in booth credits</span>
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400" />
             </button>
@@ -782,12 +892,13 @@ export default function ProfileTab({
         </div>
 
         {/* Logout */}
-        <SignOutButton>
-          <button className="w-full bg-red-50 text-red-600 text-sm font-medium px-4 py-3 rounded-xl border border-red-200 hover:bg-red-100 transition-colors flex items-center justify-center space-x-2">
-            <LogOut className="w-4 h-4" />
-            <span>Log Out</span>
-          </button>
-        </SignOutButton>
+        <button 
+          onClick={handleSignOut}
+          className="w-full bg-red-50 text-red-600 text-sm font-medium px-4 py-3 rounded-xl border border-red-200 hover:bg-red-100 transition-colors flex items-center justify-center space-x-2"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Log Out</span>
+        </button>
       </div>
 
       {/* Profile Edit Modal */}
@@ -887,7 +998,7 @@ export default function ProfileTab({
                     </div>
                     <div className="flex items-center space-x-1 text-gray-600">
                       <Clock className="w-4 h-4" />
-                      <span className="text-sm">10 kr/unlock + 3 kr/minute</span>
+                      <span className="text-sm">5 kr/minute</span>
                     </div>
                   </div>
                 </div>
@@ -899,26 +1010,29 @@ export default function ProfileTab({
                 <div className="grid gap-4">
                   <div className="bg-white rounded-xl p-6 shadow-sm border-2 border-blue-200">
                     <div className="flex items-center justify-between mb-4">
-                      <h5 className="font-semibold text-gray-900">Monthly 300</h5>
+                      <h5 className="font-semibold text-gray-900">Monthly Subscription</h5>
                       <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">Most Popular</span>
                     </div>
                     <div className="flex items-baseline space-x-2 mb-4">
-                      <span className="text-2xl font-bold text-gray-900">349 kr/month</span>
-                      <span className="text-sm text-gray-500 line-through">500 kr/month</span>
+                      <span className="text-2xl font-bold text-gray-900">299 kr/month</span>
                     </div>
-                    <p className="text-sm text-red-600 font-medium mb-4">Save 71% on a 10-min session</p>
+                    <p className="text-sm text-gray-600 font-medium mb-4">Minutes and lower rates included</p>
                     <ul className="space-y-2 text-sm text-gray-700 mb-4">
                       <li className="flex items-center">
                         <Check className="w-4 h-4 text-green-500 mr-2" />
-                        300 mins/month included
+                        Unlimited access
                       </li>
                       <li className="flex items-center">
                         <Check className="w-4 h-4 text-green-500 mr-2" />
-                        Free unlocks
+                        Up to 90 min per session
                       </li>
                       <li className="flex items-center">
                         <Check className="w-4 h-4 text-green-500 mr-2" />
-                        Cancel anytime
+                        Lower minute rate
+                      </li>
+                      <li className="flex items-center">
+                        <Check className="w-4 h-4 text-green-500 mr-2" />
+                        Customer support
                       </li>
                     </ul>
                     <button className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors">
@@ -927,26 +1041,31 @@ export default function ProfileTab({
                   </div>
 
                   <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-                    <h5 className="font-semibold text-gray-900 mb-4">Unlimited Unlocks</h5>
+                    <h5 className="font-semibold text-gray-900 mb-4">Pre-book</h5>
                     <div className="flex items-baseline space-x-2 mb-4">
-                      <span className="text-2xl font-bold text-gray-900">39 kr/month</span>
+                      <span className="text-2xl font-bold text-gray-900">From 40 kr/slot</span>
                     </div>
+                    <p className="text-sm text-gray-600 font-medium mb-4">Reserve ahead, skip the wait</p>
                     <ul className="space-y-2 text-sm text-gray-700 mb-4">
                       <li className="flex items-center">
                         <Check className="w-4 h-4 text-green-500 mr-2" />
-                        Unlimited unlocks
+                        Book specific time slots
                       </li>
                       <li className="flex items-center">
                         <Check className="w-4 h-4 text-green-500 mr-2" />
-                        Save the unlock fee every time
+                        Priority access at busy hours
                       </li>
                       <li className="flex items-center">
                         <Check className="w-4 h-4 text-green-500 mr-2" />
-                        Standard minute rate applies
+                        Auto-reminders
+                      </li>
+                      <li className="flex items-center">
+                        <Check className="w-4 h-4 text-green-500 mr-2" />
+                        Cancel anytime
                       </li>
                     </ul>
                     <button className="w-full bg-gray-100 text-gray-900 py-2 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors">
-                      Subscribe Now
+                      Book Now
                     </button>
                   </div>
                 </div>
@@ -959,10 +1078,10 @@ export default function ProfileTab({
                   <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
                     <h5 className="font-semibold text-gray-900 mb-2">30 minutes</h5>
                     <div className="flex items-baseline space-x-2 mb-2">
-                      <span className="text-xl font-bold text-gray-900">43 kr</span>
-                      <span className="text-sm text-gray-500 line-through">90 kr</span>
+                      <span className="text-xl font-bold text-gray-900">120 kr</span>
+                      <span className="text-sm text-gray-500 line-through">150 kr</span>
                     </div>
-                    <p className="text-xs text-red-600 font-medium mb-2">Save 65%</p>
+                    <p className="text-xs text-red-600 font-medium mb-2">Save 20% - 4 kr per minute</p>
                     <div className="flex items-center text-xs text-gray-600 mb-3">
                       <Clock className="w-3 h-3 mr-1" />
                       Valid for 1 day
@@ -975,10 +1094,10 @@ export default function ProfileTab({
                   <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
                     <h5 className="font-semibold text-gray-900 mb-2">60 minutes</h5>
                     <div className="flex items-baseline space-x-2 mb-2">
-                      <span className="text-xl font-bold text-gray-900">79 kr</span>
-                      <span className="text-sm text-gray-500 line-through">180 kr</span>
+                      <span className="text-xl font-bold text-gray-900">240 kr</span>
+                      <span className="text-sm text-gray-500 line-through">300 kr</span>
                     </div>
-                    <p className="text-xs text-red-600 font-medium mb-2">Save 68%</p>
+                    <p className="text-xs text-red-600 font-medium mb-2">Save 20% - 4 kr per minute</p>
                     <div className="flex items-center text-xs text-gray-600 mb-3">
                       <Clock className="w-3 h-3 mr-1" />
                       Valid for 3 days
@@ -1165,8 +1284,6 @@ export default function ProfileTab({
               {/* Available Rewards Tab */}
               {rewardsTab === 'available' && (
                 <div className="space-y-6">
-                  <PointsEarningDemo />
-                  
                   <div className="space-y-4">
                     <h5 className="font-semibold text-gray-900">Available Rewards</h5>
                   <div className="grid gap-4">
@@ -1345,7 +1462,7 @@ export default function ProfileTab({
                   </div>
                   <div>
                     <h4 className="text-lg font-semibold text-gray-900">Invite Friends & Earn</h4>
-                    <p className="text-sm text-gray-600">Get SEK 50,00 in ride credits for each friend you invite</p>
+                    <p className="text-sm text-gray-600">Get SEK 50,00 in booth credits for each friend you invite</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -1365,7 +1482,7 @@ export default function ProfileTab({
                 <h5 className="font-semibold text-gray-900 mb-3">Your Referral Code</h5>
                 <div className="flex items-center space-x-3">
                   <div className="flex-1 bg-gray-50 rounded-lg p-3 border border-gray-200">
-                    <code className="text-lg font-mono text-gray-900">BOOTH2024</code>
+                    <code className="text-lg font-mono text-gray-900">Booth2025</code>
                   </div>
                   <button className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">
                     Copy

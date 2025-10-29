@@ -11,7 +11,15 @@ export default function AppSection() {
             <p className="mt-2 text-sm font-body">— Oskar A., Consultant</p>
           </div>
           <div className="mt-8">
-            <button className="btn-gold">Sign up today</button>
+            <a href="#" className="inline-block">
+              <Image 
+                src="/images/downloadapp.png" 
+                alt="Download on the App Store" 
+                width={160}
+                height={48}
+                className="hover:opacity-90 transition-opacity"
+              />
+            </a>
           </div>
         </div>
         <div className="flex justify-center relative">

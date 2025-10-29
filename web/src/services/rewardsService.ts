@@ -62,36 +62,50 @@ class RewardsService {
         return null;
       }
 
-      // Get user's points
+      // Try primary table first
       const { data: points, error: pointsError } = await supabase
         .from('user_points')
         .select('available_points, lifetime_earned, created_at, updated_at')
         .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
 
-      if (pointsError) {
-        // Respect RLS: if no row yet, return a zeroed structure instead of inserting
-        console.warn('⚠️ RewardsService - getUserPoints: No points row or fetch error, falling back to zeros:', pointsError);
+      if (!pointsError && points) {
         return {
-          id: 'temp',
+          id: 'existing-points-id',
           user_id: user.id,
-          points: 0,
-          total_earned: 0,
-          total_spent: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
+          points: points.available_points,
+          total_earned: points.lifetime_earned,
+          total_spent: points.lifetime_earned - points.available_points,
+          created_at: points.created_at,
+          updated_at: points.updated_at
+        }
       }
 
+      // Fallback: hardcode baseline 250 and compute deltas from transactions
+      console.warn('⚠️ RewardsService - getUserPoints: Falling back to baseline + transactions due to missing user_points row. Details:', pointsError)
+
+      const { data: txAgg, error: txError } = await supabase
+        .from('points_transactions')
+        .select('amount')
+        .eq('user_id', user.id)
+
+      let delta = 0
+      if (!txError && Array.isArray(txAgg)) {
+        delta = txAgg.reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0)
+      }
+
+      const baseline = 250
+      const computedAvailable = Math.max(0, baseline + delta)
+
       return {
-        id: 'existing-points-id',
+        id: 'virtual-points',
         user_id: user.id,
-        points: points.available_points,
-        total_earned: points.lifetime_earned,
-        total_spent: points.lifetime_earned - points.available_points,
-        created_at: points.created_at,
-        updated_at: points.updated_at
-      };
+        points: computedAvailable,
+        total_earned: Math.max(0, baseline + Math.max(0, delta)),
+        total_spent: Math.max(0, -Math.min(0, delta)),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
     } catch (error) {
       console.error('❌ RewardsService - getUserPoints: Exception:', error);
       return null;
@@ -199,34 +213,62 @@ class RewardsService {
         return { success: false, error: 'Reward not found or inactive' };
       }
 
-      // Check if user has enough points
+      // Try to read persisted points (may not exist)
       const { data: userPoints, error: pointsError } = await supabase
         .from('user_points')
         .select('available_points, lifetime_earned')
         .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
 
-      if (pointsError || !userPoints) {
-        return { success: false, error: 'Could not fetch user points' };
+      let canAfford = false
+      let newAvailable = 0
+
+      if (!pointsError && userPoints) {
+        canAfford = userPoints.available_points >= reward.cost
+        newAvailable = userPoints.available_points - reward.cost
+      } else {
+        // Virtual balance path: baseline 250 + transactions
+        const { data: txAgg, error: txError } = await supabase
+          .from('points_transactions')
+          .select('amount')
+          .eq('user_id', user.id)
+        const delta = !txError && Array.isArray(txAgg) ? txAgg.reduce((s: number, t: any) => s + (Number(t.amount) || 0), 0) : 0
+        const virtual = 250 + delta
+        canAfford = virtual >= reward.cost
+        newAvailable = virtual - reward.cost
       }
 
-      if (userPoints.available_points < reward.cost) {
-        return { success: false, error: 'Insufficient points' };
+      if (!canAfford) {
+        return { success: false, error: 'Insufficient points' }
       }
 
-      // Deduct points and create user reward
-      const { error: deductError } = await supabase
-        .from('user_points')
-        .update({
-          available_points: userPoints.available_points - reward.cost,
-          total_points: userPoints.available_points - reward.cost,
-          updated_at: new Date().toISOString()
+      // If persisted points exists, update it; otherwise log a spend transaction only
+      if (userPoints) {
+        const { error: deductError } = await supabase
+          .from('user_points')
+          .update({
+            available_points: newAvailable,
+            total_points: newAvailable,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id)
+
+        if (deductError) {
+          return { success: false, error: 'Failed to deduct points' }
+        }
+      }
+
+      // Record spend transaction for audit and for virtual balance path
+      await supabase
+        .from('points_transactions')
+        .insert({
+          user_id: user.id,
+          amount: -reward.cost,
+          transaction_type: 'spent',
+          source: 'reward_claim',
+          source_id: String(rewardId),
+          description: `Claimed reward ${rewardId}`
         })
-        .eq('user_id', user.id)
-
-      if (deductError) {
-        return { success: false, error: 'Failed to deduct points' };
-      }
 
       // Create user reward
       const { error: createError } = await supabase

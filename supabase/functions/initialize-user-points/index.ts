@@ -25,17 +25,36 @@ serve(async (req) => {
       }
     )
 
-    const { user_id } = await req.json()
+    const { clerkUserId } = await req.json()
 
-    if (!user_id) {
+    if (!clerkUserId) {
       return new Response(
-        JSON.stringify({ error: 'user_id is required' }),
+        JSON.stringify({ error: 'clerkUserId is required' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       )
     }
+
+    // Get user's internal ID from clerk_user_id
+    const { data: user, error: userError } = await supabaseClient
+      .from('users')
+      .select('id')
+      .eq('clerk_user_id', clerkUserId)
+      .single()
+
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'User not found' }),
+        { 
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    const user_id = user.id
 
     // Check if user points already exist
     const { data: existingPoints, error: checkError } = await supabaseClient

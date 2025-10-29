@@ -1,6 +1,7 @@
 "use client";
 
 import { Check } from 'lucide-react'
+import { useUser, useClerk } from '@clerk/nextjs'
 
 function Bullet({ children }: { children: React.ReactNode }) {
   return (
@@ -14,6 +15,22 @@ function Bullet({ children }: { children: React.ReactNode }) {
 }
 
 export default function PricingPlans() {
+  const { isSignedIn } = useUser()
+  const { openSignIn } = useClerk()
+
+  const handleChoose = (planId: string) => {
+    if (!isSignedIn) {
+      try {
+        localStorage.setItem('selectedPlan', planId)
+      } catch {}
+      openSignIn()
+      return
+    }
+    // TODO: replace with real navigation/checkout once wired
+    // For now, this acts as a placeholder to confirm click-through
+    // eslint-disable-next-line no-alert
+    alert(`Plan ${planId} selected. Proceed to checkout/booking.`)
+  }
   return (
     <section id="pricing" className="py-20 bg-white">
       <div className="mx-auto max-w-6xl px-6 text-center">
@@ -33,7 +50,7 @@ export default function PricingPlans() {
               <Bullet>Billed by the minute</Bullet>
             </ul>
             <div className="mt-8">
-              <button className="btn-outline-dark w-full hover:bg-kubo-primary hover:text-white transition-colors">Choose plan</button>
+              <button onClick={() => handleChoose('payg')} className="btn-outline-dark w-full hover:bg-kubo-primary hover:text-white transition-colors">Choose plan</button>
             </div>
           </div>
 
@@ -49,7 +66,7 @@ export default function PricingPlans() {
               <Bullet>Customer support</Bullet>
             </ul>
             <div className="mt-8">
-              <button className="btn-gold w-full">Choose plan</button>
+              <button onClick={() => handleChoose('monthly')} className="btn-gold w-full">Choose plan</button>
             </div>
           </div>
 
@@ -65,7 +82,7 @@ export default function PricingPlans() {
               <Bullet>Cancel anytime</Bullet>
             </ul>
             <div className="mt-8">
-              <button className="btn-outline-dark w-full hover:bg-kubo-primary hover:text-white transition-colors">Choose plan</button>
+              <button onClick={() => handleChoose('prebook')} className="btn-outline-dark w-full hover:bg-kubo-primary hover:text-white transition-colors">Choose plan</button>
             </div>
           </div>
         </div>

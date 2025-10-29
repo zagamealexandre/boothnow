@@ -612,7 +612,7 @@ class UserService {
         .from('sessions')
         .select(`
           *,
-          booths (
+          booths!sessions_booth_id_fkey (
             name,
             address,
             partner

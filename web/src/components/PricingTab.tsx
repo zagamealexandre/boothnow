@@ -60,9 +60,9 @@ export default function PricingTab({ subscriptions, onPlanSelect }: PricingTabPr
     {
       id: 'payg-stockholm',
       name: 'Pay as you go',
-      price: '10 kr/unlock + 3 kr/minute',
+      price: '5 kr/minute',
       period: 'Per session',
-      description: 'Stay flexible – ride at standard rates.',
+      description: 'Only pay for the time you use.',
       features: [
         'No subscription required',
         'Start and stop anytime',
@@ -78,53 +78,34 @@ export default function PricingTab({ subscriptions, onPlanSelect }: PricingTabPr
   const monthlyPlans: PricingPlan[] = [
     {
       id: 'monthly-300',
-      name: 'Monthly 300',
-      price: '349 kr/month',
-      originalPrice: '500 kr/month',
+      name: 'Monthly Subscription',
+      price: '299 kr/month',
       period: 'month',
-      description: 'With free unlocks. Cancel anytime.',
+      description: 'Minutes and lower rates included.',
       features: [
-        '300 mins/month included',
-        'Free unlocks',
+        'Unlimited access',
+        'Up to 90 min per session',
         'Lower minute rate',
-        'Cancel anytime'
+        'Customer support'
       ],
       badge: 'Most Popular',
       popular: true,
-      savings: 'Save 71% on a 10-min ride',
       buttonText: 'Subscribe Now',
       buttonStyle: 'primary'
     },
     {
-      id: 'monthly-750',
-      name: 'Monthly 750',
-      price: '699 kr/month',
-      originalPrice: '1000 kr/month',
-      period: 'month',
-      description: 'With free unlocks. Cancel anytime.',
+      id: 'prebook',
+      name: 'Pre-book',
+      price: 'From 40 kr/slot',
+      period: 'Per slot',
+      description: 'Reserve ahead, skip the wait.',
       features: [
-        '750 mins/month included',
-        'Free unlocks',
-        'Lower minute rate',
+        'Book specific time slots',
+        'Priority access at busy hours',
+        'Auto-reminders',
         'Cancel anytime'
       ],
-      savings: 'Save 77% on a 10-min ride',
-      buttonText: 'Subscribe Now',
-      buttonStyle: 'primary'
-    },
-    {
-      id: 'unlimited-unlocks',
-      name: 'Unlimited Unlocks',
-      price: '39 kr/month',
-      period: 'month',
-      description: 'With free unlocks. Cancel anytime.',
-      features: [
-        'Unlimited unlocks',
-        'Save the unlock fee every time',
-        'Standard minute rate applies',
-        'Cancel anytime'
-      ],
-      buttonText: 'Subscribe Now',
+      buttonText: 'Book Now',
       buttonStyle: 'secondary'
     }
   ];
@@ -133,17 +114,15 @@ export default function PricingTab({ subscriptions, onPlanSelect }: PricingTabPr
     {
       id: 'prepaid-30',
       name: '30 minutes',
-      price: '43 kr',
-      originalPrice: '90 kr',
+      price: '150 kr',
       period: 'one-time',
-      description: 'Buy minutes at a lower rate. With free unlocks.',
+      description: 'Buy minutes at a lower rate.',
       features: [
         '30 minutes included',
-        'Free unlocks',
         'Valid for 1 day',
+        'Use at any location',
         'No subscription required'
       ],
-      savings: 'Save 65% on a 10-min ride',
       validity: 'Valid for 1 day',
       buttonText: 'Buy Now',
       buttonStyle: 'primary'
@@ -151,17 +130,15 @@ export default function PricingTab({ subscriptions, onPlanSelect }: PricingTabPr
     {
       id: 'prepaid-60',
       name: '60 minutes',
-      price: '79 kr',
-      originalPrice: '180 kr',
+      price: '280 kr',
       period: 'one-time',
-      description: 'Buy minutes at a lower rate. With free unlocks.',
+      description: 'Buy minutes at a lower rate.',
       features: [
         '60 minutes included',
-        'Free unlocks',
         'Valid for 3 days',
+        'Use at any location',
         'No subscription required'
       ],
-      savings: 'Save 68% on a 10-min ride',
       validity: 'Valid for 3 days',
       buttonText: 'Buy Now',
       buttonStyle: 'primary'
@@ -169,17 +146,15 @@ export default function PricingTab({ subscriptions, onPlanSelect }: PricingTabPr
     {
       id: 'prepaid-120',
       name: '120 minutes',
-      price: '149 kr',
-      originalPrice: '360 kr',
+      price: '520 kr',
       period: 'one-time',
-      description: 'Buy minutes at a lower rate. With free unlocks.',
+      description: 'Buy minutes at a lower rate.',
       features: [
         '120 minutes included',
-        'Free unlocks',
         'Valid for 7 days',
+        'Use at any location',
         'No subscription required'
       ],
-      savings: 'Save 72% on a 10-min ride',
       validity: 'Valid for 7 days',
       buttonText: 'Buy Now',
       buttonStyle: 'primary'

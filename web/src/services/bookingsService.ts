@@ -25,8 +25,6 @@ class BookingsService {
   // Get all user bookings (reservations + sessions)
   async getUserBookings(clerkUserId: string): Promise<Booking[]> {
     try {
-      console.log('🔧 BookingsService - getUserBookings: Fetching bookings for user:', clerkUserId)
-
       // Get user's internal ID strictly by clerk_user_id (no fallbacks)
       const { data: userByClerkId, error: clerkError } = await supabase
         .from('users')
@@ -40,30 +38,20 @@ class BookingsService {
       const user = userByClerkId
 
       // Get reservations (pre-bookings) - fetch without joins first to avoid relationship issues
-      console.log('🔍 BookingsService - getUserBookings: Fetching reservations for user ID:', user.id)
       const { data: reservations, error: reservationsError } = await supabase
         .from('reservations')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-      
-      console.log('🔍 BookingsService - getUserBookings: Reservations query result:', { 
-        reservations: reservations?.length || 0, 
-        error: reservationsError 
-      })
+    
 
-      // Get sessions (immediate bookings). Prefer user_id; also include clerk_user_id fallback
-      console.log('🔍 BookingsService - getUserBookings: Fetching sessions for user/clerk:', { userId: user.id, clerkUserId })
+      // Get sessions (immediate bookings) - fetch without joins first to avoid relationship issues
       const { data: sessions, error: sessionsError } = await supabase
         .from('sessions')
         .select('*')
-        .or(`user_id.eq.${user.id},clerk_user_id.eq.${clerkUserId}`)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-      
-      console.log('🔍 BookingsService - getUserBookings: Sessions query result:', { 
-        sessions: sessions?.length || 0, 
-        error: sessionsError 
-      })
+    
 
       // Handle errors separately - don't let sessions error block reservations
       if (reservationsError) {
@@ -121,15 +109,8 @@ class BookingsService {
 
       // Add sessions (immediate bookings) - only if no error
       if (!sessionsError && sessions) {
-        console.log('🔍 BookingsService - Processing sessions:', sessions.length)
         for (const session of sessions) {
-          console.log('🔍 BookingsService - Session data:', {
-            id: session.id,
-            status: session.status,
-            start_time: session.start_time,
-            cost_per_minute: session.cost_per_minute,
-            total_minutes: session.total_minutes
-          })
+
           // Fetch booth details for each session
           let boothName = 'Booth'
           let boothAddress = 'Address'
@@ -170,31 +151,11 @@ class BookingsService {
             timeRemaining = Math.max(0, maxDurationSeconds - elapsed)
             currentCost = elapsedMinutes * costPerMinute
             
-            // Debug logging
-            console.log('🔍 BookingsService - Session cost calculation:', {
-              sessionId: session.id,
-              startTime: session.start_time,
-              now: now.toISOString(),
-              elapsedSeconds: elapsed,
-              elapsedMinutes: elapsedMinutes,
-              sessionCostPerMinute: session.cost_per_minute,
-              boothCostPerMinute: boothCostPerMinute,
-              finalCostPerMinute: costPerMinute,
-              currentCost: currentCost,
-              timeRemainingMinutes: Math.ceil(timeRemaining / 60)
-            })
           } else if (session.status === 'completed') {
             // For completed sessions, use the stored total_minutes and calculate final cost
             const costPerMinute = 0.50
             const totalMinutes = session.total_minutes || 0
             currentCost = totalMinutes * costPerMinute
-            
-            console.log('🔍 BookingsService - Completed session cost calculation:', {
-              sessionId: session.id,
-              totalMinutes: totalMinutes,
-              costPerMinute: costPerMinute,
-              currentCost: currentCost
-            })
           }
           
           allBookings.push({
@@ -219,11 +180,9 @@ class BookingsService {
       // Sort by creation date (newest first)
       allBookings.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
-      console.log('✅ BookingsService - getUserBookings: Found bookings:', allBookings.length)
       
       // If both queries failed, return empty array instead of mock data
       if (reservationsError && sessionsError) {
-        console.log('⚠️ BookingsService - getUserBookings: Both reservations and sessions queries failed, returning empty array')
         return []
       }
       
@@ -283,8 +242,6 @@ class BookingsService {
   // Cancel a booking
   async cancelBooking(bookingId: string, clerkUserId: string): Promise<{ success: boolean; error?: string }> {
     try {
-      console.log('🔧 BookingsService - cancelBooking: Cancelling booking:', bookingId)
-
       // Get user's internal ID strictly by clerk_user_id (no fallbacks)
       const { data: userByClerkId, error: clerkError } = await supabase
         .from('users')
@@ -318,7 +275,6 @@ class BookingsService {
         }
       }
 
-      console.log('✅ BookingsService - cancelBooking: Booking cancelled successfully')
       return { success: true }
 
     } catch (error) {

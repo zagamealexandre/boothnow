@@ -156,7 +156,7 @@ export default function VideoHero({ onShowLandingPage }: VideoHeroProps) {
               {/* Skip button in bottom center */}
               <motion.button
                 onClick={handleSkipVideo}
-                className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-black/50 backdrop-blur-sm border border-white/30 text-white px-6 py-3 rounded-full hover:bg-black/70 transition-colors text-lg font-medium"
+                className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-black/50 backdrop-blur-sm border border-white/30 text-white px-6 py-3 rounded-full hover:bg-black/70 transition-colors text-lg font-medium"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.5, duration: 0.5 }}

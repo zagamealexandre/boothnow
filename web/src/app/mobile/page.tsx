@@ -3,9 +3,14 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
+import { useParallaxGyroscope } from '../../hooks/useParallaxGyroscope';
 
 export default function MobileLandingPage() {
   const [mounted, setMounted] = useState(false);
+  const { getTransform, isSupported } = useParallaxGyroscope({ 
+    intensity: 20,
+    enabled: true 
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -13,19 +18,42 @@ export default function MobileLandingPage() {
 
   if (!mounted) return null;
 
+  // Get transforms for different parallax layers
+  const backgroundTransform = getTransform(0, 1.2); // Background moves more (deeper layer)
+  const foregroundTransform = getTransform(1, 0.8); // Foreground moves less (closer layer)
+
   return (
     <div className="relative w-full h-dvh overflow-hidden">
-      {/* Background Image */}
-      <Image
-        src="/images/landingmobile.png"
-        alt="KUBO Mobile App"
-        fill
-        className="object-cover"
-        priority
-      />
+      {/* Background Image with Parallax */}
+      <div
+        className="absolute inset-0 w-full h-full"
+        style={{
+          transform: backgroundTransform,
+          transition: isSupported ? 'none' : 'transform 0.1s ease-out',
+          willChange: 'transform',
+        }}
+      >
+        <Image
+          src="/images/landingmobile.png"
+          alt="KUBO Mobile App"
+          fill
+          className="object-cover"
+          priority
+          style={{
+            transform: `scale(1.1)`, // Slight scale to prevent edges showing during movement
+          }}
+        />
+      </div>
       
-      {/* Overlay with Logo, Text, and CTA */}
-      <div className="absolute inset-0 flex flex-col h-dvh">
+      {/* Overlay with Logo, Text, and CTA - with Parallax */}
+      <div 
+        className="absolute inset-0 flex flex-col h-dvh z-10"
+        style={{
+          transform: foregroundTransform,
+          transition: isSupported ? 'none' : 'transform 0.1s ease-out',
+          willChange: 'transform',
+        }}
+      >
         {/* Logo at top */}
         <div className="pt-4 pb-2">
           <Image

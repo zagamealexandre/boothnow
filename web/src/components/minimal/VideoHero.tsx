@@ -7,7 +7,6 @@ import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
 import Link from 'next/link';
 import { ValueProps } from './ValueProps';
 import { MapSection } from './MapSection';
-import { Pricing } from './Pricing';
 import { PrebookPreview } from './PrebookPreview';
 import { CalmCta } from './CalmCta';
 import { Footer } from '../ui/footer-section';

@@ -227,6 +227,47 @@ router.post('/:id/end', async (req: AuthenticatedRequest, res) => {
       console.warn('Failed to update booth status to available:', e);
     }
 
+    // Fallback: ensure a receipt exists if DB trigger didn't create it
+    try {
+      const { data: existingReceipt } = await supabase
+        .from('receipts')
+        .select('id')
+        .eq('session_id', session.id)
+        .maybeSingle();
+
+      if (!existingReceipt) {
+        const amount = (session as any).cost ?? (session as any).total_cost ?? 0;
+        const receiptNum = `RCP-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(Math.random()*9000)+1000}`;
+        const { error: receiptInsertErr } = await supabase
+          .from('receipts')
+          .insert({
+            user_id: (session as any).user_id,
+            session_id: session.id,
+            payment_id: null,
+            receipt_number: receiptNum,
+            amount,
+            currency: 'SEK',
+            receipt_data: {
+              receipt_number: receiptNum,
+              session_id: session.id,
+              booth_name: session.booths?.partner || 'Booth',
+              booth_address: session.booths?.address || '',
+              start_time: session.start_time,
+              end_time: session.end_time,
+              duration_minutes: (session as any).total_minutes ?? 0,
+              amount,
+              currency: 'SEK',
+              generated_at: new Date().toISOString(),
+            },
+          } as any);
+
+        if (receiptInsertErr) {
+          console.warn('Receipt fallback insert failed:', receiptInsertErr);
+        }
+      }
+    } catch (e) {
+      console.warn('Receipt fallback flow failed:', e);
+    }
 
     return res.json({ 
       session,

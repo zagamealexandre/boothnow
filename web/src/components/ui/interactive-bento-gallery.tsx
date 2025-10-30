@@ -69,6 +69,7 @@ const MediaItem = ({ item, className, onClick, fit = 'cover' }: { item: MediaIte
         className={`${fit === 'contain' ? 'object-contain' : 'object-cover'} cursor-pointer`}
         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
         priority={false}
+        unoptimized
       />
     </div>
   )

@@ -115,8 +115,8 @@ const GalleryModal = ({ selectedItem, isOpen, onClose, setSelectedItem, mediaIte
 
 interface InteractiveBentoGalleryProps {
   mediaItems: MediaItemType[]
-  title: string
-  description: string
+  title?: string
+  description?: string
 }
 
 const InteractiveBentoGallery: React.FC<InteractiveBentoGalleryProps> = ({ mediaItems, title, description }) => {
@@ -126,10 +126,16 @@ const InteractiveBentoGallery: React.FC<InteractiveBentoGalleryProps> = ({ media
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="mb-6 text-center">
-        <motion.h1 className="text-2xl sm:text-3xl font-bold text-gray-900" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>{title}</motion.h1>
-        <motion.p className="mt-2 text-sm text-gray-600" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>{description}</motion.p>
-      </div>
+      {(title || description) && (
+        <div className="mb-6 text-center">
+          {title && (
+            <motion.h1 className="text-2xl sm:text-3xl font-bold text-gray-900" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>{title}</motion.h1>
+          )}
+          {description && (
+            <motion.p className="mt-2 text-sm text-gray-600" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>{description}</motion.p>
+          )}
+        </div>
+      )}
       <AnimatePresence mode="wait">
         {selectedItem ? (
           <GalleryModal selectedItem={selectedItem} isOpen={true} onClose={() => setSelectedItem(null)} setSelectedItem={setSelectedItem} mediaItems={items} />

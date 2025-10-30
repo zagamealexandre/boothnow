@@ -273,7 +273,17 @@ export default function PresentationPage() {
         <Section id="product" title="Product">
         <div className="grid lg:grid-cols-2 gap-10 items-start">
           <div className="rounded-2xl border border-neutral-200 overflow-hidden">
-            <ImageGallery />
+            <InteractiveBentoGallery
+              mediaItems={[
+                { id: 1, type: 'image', title: 'Booth', desc: '', url: '/presentation/mute3.webp', span: 'md:col-span-2 md:row-span-2 sm:col-span-2 sm:row-span-2' },
+                { id: 2, type: 'image', title: '7‑Eleven Booth', desc: '', url: '/presentation/7elevenbooth.png', span: 'md:col-span-2 md:row-span-2 sm:col-span-2 sm:row-span-2' },
+                { id: 3, type: 'image', title: 'Booking Card', desc: '', url: '/images/boothA.png', span: 'md:col-span-1 md:row-span-2 sm:col-span-2 sm:row-span-2' },
+                { id: 4, type: 'image', title: 'Map Page', desc: '', url: '/presentation/mappage.png', span: 'md:col-span-1 md:row-span-2 sm:col-span-2 sm:row-span-2' },
+                { id: 5, type: 'image', title: 'Rewards Page', desc: '', url: '/presentation/profilepage.png', span: 'md:col-span-2 md:row-span-2 sm:col-span-2 sm:row-span-2' },
+                { id: 6, type: 'image', title: 'Receipts', desc: 'Automatic receipts for reimbursements', url: '/presentation/receipts.jpg', span: 'md:col-span-2 md:row-span-2 sm:col-span-2 sm:row-span-2' },
+                { id: 7, type: 'image', title: 'Loyalty', desc: 'Rewards and loyalty program', url: '/presentation/loyalty.jpg', span: 'md:col-span-2 md:row-span-2 sm:col-span-2 sm:row-span-2' },
+              ]}
+            />
           </div>
           <div className="space-y-6">
             <div>
@@ -285,7 +295,7 @@ export default function PresentationPage() {
                 <li>Business-ready: automatic receipts for reimbursements; usage history and analytics for frequent users.</li>
               </ul>
               <p className="mt-3 text-sm" style={{ color: K.green }}>
-                Rewards and loyalty program launching next — built around 7-Eleven purchases and usage minutes.
+                Rewards and loyalty program built around 7-Eleven purchases and usage minutes.
               </p>
             </div>
             
@@ -557,10 +567,24 @@ export default function PresentationPage() {
           Calm Scandinavian feel, clean greys with blue accents, gold for calls to action.
           Story flows from city noise to silence and focus. The booth is the doorway.
         </p>
+
+        {/* Creative rationale */}
+        <div className="mt-4 text-neutral-700">
+          <p className="text-[15px]">
+            The design balances accessibility and calm — the booth is a reset point in the middle of urban noise.
+            Every visual choice reinforces that: muted neutrals, soft contrasts, and golden accents signaling focus and action.
+          </p>
+        </div>
+
+        {/* Mood keywords strip */}
+        <div className="mt-4 flex items-center gap-3 text-sm text-neutral-600">
+          <span className="px-3 py-1 rounded-full border border-neutral-200 bg-white">calm</span>
+          <span className="px-3 py-1 rounded-full border border-neutral-200 bg-white">focus</span>
+          <span className="px-3 py-1 rounded-full border border-neutral-200 bg-white">accessibility</span>
+          <span className="px-3 py-1 rounded-full border border-neutral-200 bg-white">Scandinavian warmth</span>
+        </div>
         <div className="mt-6">
           <InteractiveBentoGallery
-            title="Creative direction"
-            description="Palette, typography and focus frames"
             mediaItems={[
               { id: 1, type: 'image', title: 'Palette', desc: 'Gold accent on calm greys and navy', url: '/presentation/palette.png', span: 'md:col-span-2 md:row-span-2 sm:col-span-2 sm:row-span-2' },
               { id: 2, type: 'image', title: 'Typography', desc: 'Aboreto headers, Reddit Sans UI', url: '/presentation/typographie.png', span: 'md:col-span-1 md:row-span-3 sm:col-span-1 sm:row-span-2' },
@@ -570,6 +594,11 @@ export default function PresentationPage() {
             ]}
           />
         </div>
+
+        {/* Future extension note */}
+        <p className="mt-4 text-sm text-neutral-600">
+          System adaptable for partner branding — 7‑Eleven co‑branding colors can integrate without losing the calm aesthetic.
+        </p>
       </Section>
 
         <Section id="quotes" title="Real user quotes">

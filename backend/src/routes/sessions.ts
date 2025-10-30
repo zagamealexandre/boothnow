@@ -183,8 +183,10 @@ router.post('/:id/end', async (req: AuthenticatedRequest, res) => {
         end_time: new Date().toISOString(),
         status: 'completed',
         total_minutes,
-        total_cost
-      })
+        total_cost,
+        // Keep both fields in sync for DB triggers that expect `cost`
+        cost: total_cost,
+      } as any)
       .eq('id', id)
       .or(
         userRow?.id

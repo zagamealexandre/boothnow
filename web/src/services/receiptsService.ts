@@ -56,17 +56,7 @@ class ReceiptsService {
 
       const { data: receipts, error } = await supabase
         .from('receipts')
-        .select(`
-          *,
-          sessions!inner (
-            id,
-            start_time,
-            end_time,
-            total_minutes,
-            status,
-            booth_id
-          )
-        `)
+        .select('*')
         .eq('user_id', userByClerkId.id)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
@@ -100,17 +90,7 @@ class ReceiptsService {
 
       const { data: receipt, error } = await supabase
         .from('receipts')
-        .select(`
-          *,
-          sessions!inner (
-            id,
-            start_time,
-            end_time,
-            total_minutes,
-            status,
-            booth_id
-          )
-        `)
+        .select('*')
         .eq('id', receiptId)
         .eq('user_id', userByClerkId.id)
         .single();

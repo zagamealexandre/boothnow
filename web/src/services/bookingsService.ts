@@ -145,17 +145,15 @@ class BookingsService {
             const elapsedMinutes = elapsed / 60
             const maxDurationSeconds = (session.total_minutes || 60) * 60
             
-            // Use 0.50 as the correct cost_per_minute (ignore database value if it's wrong)
-            const costPerMinute = 0.50
+            // Always use 5.00 SEK per minute for live calculation
+            const costPerMinute = 5.00
             
             timeRemaining = Math.max(0, maxDurationSeconds - elapsed)
             currentCost = elapsedMinutes * costPerMinute
             
           } else if (session.status === 'completed') {
-            // For completed sessions, use the stored total_minutes and calculate final cost
-            const costPerMinute = 0.50
-            const totalMinutes = session.total_minutes || 0
-            currentCost = totalMinutes * costPerMinute
+            // For completed sessions, trust the server-side computed session.cost
+            currentCost = session.cost || 0
           }
           
           allBookings.push({
@@ -168,7 +166,7 @@ class BookingsService {
             duration_minutes: session.total_minutes || 60,
             status: session.status === 'active' ? 'active' : session.status === 'completed' ? 'completed' : 'pending',
             type: 'immediate',
-            cost: currentCost, // Use calculated cost instead of hardcoded session.cost
+            cost: currentCost,
             time_remaining: timeRemaining > 0 ? Math.ceil(timeRemaining / 60) : 0, // Convert to minutes
             current_cost: currentCost,
             created_at: session.created_at,

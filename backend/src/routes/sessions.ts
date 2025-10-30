@@ -182,10 +182,12 @@ router.post('/:id/end', async (req: AuthenticatedRequest, res) => {
       .update({
         end_time: new Date().toISOString(),
         status: 'completed',
-        total_minutes,
-        total_cost,
+        total_minutes: total_minutes ?? undefined,
+        total_cost: total_cost ?? undefined,
         // Keep both fields in sync for DB triggers that expect `cost`
-        cost: total_cost,
+        cost: total_cost ?? undefined,
+        // Ensure user_id is set for receipt insertion logic
+        user_id: userRow?.id ?? undefined,
       } as any)
       .eq('id', id)
       .or(

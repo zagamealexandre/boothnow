@@ -1,5 +1,6 @@
 "use client"
 import React, { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 
@@ -60,7 +61,16 @@ const MediaItem = ({ item, className, onClick, fit = 'cover' }: { item: MediaIte
     )
   }
   return (
-    <img src={item.url} alt={item.title} className={`${className} ${fit === 'contain' ? 'object-contain' : 'object-cover'} cursor-pointer`} onClick={onClick} loading="lazy" decoding="async" />
+    <div className={`${className} relative`} onClick={onClick}>
+      <Image
+        src={item.url}
+        alt={item.title}
+        fill
+        className={`${fit === 'contain' ? 'object-contain' : 'object-cover'} cursor-pointer`}
+        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+        priority={false}
+      />
+    </div>
   )
 }
 
